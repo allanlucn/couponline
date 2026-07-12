@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureAnon } from "@/lib/anon-auth";
 import type { Character } from "@/game/types";
@@ -10,11 +11,10 @@ export type RoomRow = {
   host_id: string | null;
   current_player_id: string | null;
   state: {
-    deck?: Character[];
     pending?: any;
-    rngSeed?: number;
     actionTimeoutSeconds?: number;
     deadlineAt?: string;
+    version?: number;
   };
   winner_id: string | null;
 };
@@ -38,12 +38,18 @@ export type EventRow = {
   created_at: string;
 };
 
+type PrivateHandRow = {
+  cards: Character[];
+  pending_cards: Character[];
+};
+
 export function useCoupRoom(code: string | undefined) {
   const [uid, setUid] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomRow | null>(null);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [myHand, setMyHand] = useState<Character[]>([]);
+  const [myPendingCards, setMyPendingCards] = useState<Character[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [identityResolved, setIdentityResolved] = useState(false);
 
@@ -52,16 +58,31 @@ export function useCoupRoom(code: string | undefined) {
   }, []);
 
   useEffect(() => {
-    if (!code || !uid) return;
+    setRoom(null);
+    setPlayers([]);
+    setEvents([]);
+    setMyHand([]);
+    setMyPendingCards([]);
+    setMyPlayerId(null);
     setIdentityResolved(false);
-    let mounted = true;
-    (async () => {
+
+    if (!code || !uid) return;
+
+    let roomChannel: RealtimeChannel | null = null;
+    let handChannel: RealtimeChannel | null = null;
+    let cancelled = false;
+
+    const initialize = async () => {
       const { data: r } = await supabase
         .from("rooms")
         .select("*")
         .eq("code", code.toUpperCase())
         .maybeSingle();
-      if (!mounted || !r) return;
+      if (cancelled) return;
+      if (!r) {
+        setIdentityResolved(true);
+        return;
+      }
       setRoom(r as any);
       const storedPlayerId = sessionStorage.getItem(`coup:player:${code.toUpperCase()}`);
       const meQuery = storedPlayerId
@@ -83,34 +104,42 @@ export function useCoupRoom(code: string | undefined) {
         supabase.from("events").select("*").eq("room_id", r.id).order("seq"),
         meQuery,
       ]);
+      if (cancelled) return;
       setPlayers((ps as any) ?? []);
       setEvents((es as any) ?? []);
       if (me) {
         setMyPlayerId(me.id);
         const { data: h } = await supabase
           .from("hands")
-          .select("cards")
+          .select("cards,pending_cards")
           .eq("player_id", me.id)
           .maybeSingle();
-        setMyHand((h?.cards as Character[]) ?? []);
+        if (cancelled) return;
+        const hand = h as unknown as PrivateHandRow | null;
+        setMyHand(hand?.cards ?? []);
+        setMyPendingCards(hand?.pending_cards ?? []);
       }
       setIdentityResolved(true);
 
       const refetchHand = async (pid: string) => {
         const { data: h } = await supabase
           .from("hands")
-          .select("cards")
+          .select("cards,pending_cards")
           .eq("player_id", pid)
           .maybeSingle();
-        setMyHand((h?.cards as Character[]) ?? []);
+        if (cancelled) return;
+        const hand = h as unknown as PrivateHandRow | null;
+        setMyHand(hand?.cards ?? []);
+        setMyPendingCards(hand?.pending_cards ?? []);
       };
 
-      const ch = supabase
+      roomChannel = supabase
         .channel(`room:${r.id}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "rooms", filter: `id=eq.${r.id}` },
           (payload) => {
+            if (cancelled) return;
             if (payload.new) setRoom(payload.new as any);
             if (me) refetchHand(me.id);
           },
@@ -124,6 +153,7 @@ export function useCoupRoom(code: string | undefined) {
               .select("*")
               .eq("room_id", r.id)
               .order("seat");
+            if (cancelled) return;
             setPlayers((data as any) ?? []);
           },
         )
@@ -131,34 +161,46 @@ export function useCoupRoom(code: string | undefined) {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "events", filter: `room_id=eq.${r.id}` },
           (payload) => {
+            if (cancelled) return;
             setEvents((prev) => [...prev, payload.new as any]);
           },
         )
         .subscribe();
 
       // subscribe to own hand changes
-      const hch = me
+      handChannel = me
         ? supabase
             .channel(`hand:${me.id}`)
             .on(
               "postgres_changes",
               { event: "*", schema: "public", table: "hands", filter: `player_id=eq.${me.id}` },
               (payload: any) => {
-                if (payload.new?.cards) setMyHand(payload.new.cards);
+                if (cancelled) return;
+                setMyHand((payload.new?.cards as Character[]) ?? []);
+                setMyPendingCards((payload.new?.pending_cards as Character[]) ?? []);
               },
             )
             .subscribe()
         : null;
+    };
 
-      return () => {
-        supabase.removeChannel(ch);
-        if (hch) supabase.removeChannel(hch);
-      };
-    })();
+    void initialize();
+
     return () => {
-      mounted = false;
+      cancelled = true;
+      if (roomChannel) void supabase.removeChannel(roomChannel);
+      if (handChannel) void supabase.removeChannel(handChannel);
     };
   }, [code, uid]);
 
-  return { uid, room, players, events, myHand, myPlayerId, identityResolved };
+  return {
+    uid,
+    room,
+    players,
+    events,
+    myHand,
+    myPendingCards,
+    myPlayerId,
+    identityResolved,
+  };
 }

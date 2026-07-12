@@ -1,15 +1,70 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { reduce, startGame, type FullState, type FullPlayer, type Action } from "@/game/engine";
-import type { Character } from "@/game/types";
+import { reduce, startGame, type Action, type FullState, type LogEvent } from "@/game/engine";
+import type { PendingAction } from "@/game/types";
 
-// Deterministic short-code generator (no ambiguous chars)
+const characters = ["duke", "assassin", "captain", "ambassador", "contessa"] as const;
+const actionTypes = [
+  "income",
+  "foreign_aid",
+  "coup",
+  "tax",
+  "assassinate",
+  "steal",
+  "exchange",
+] as const;
+
+const actionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("action"),
+    type: z.enum(actionTypes),
+    actorId: z.string().uuid(),
+    targetId: z.string().uuid().optional(),
+  }),
+  z.object({ kind: z.literal("challenge"), challengerId: z.string().uuid() }),
+  z.object({
+    kind: z.literal("block"),
+    blockerId: z.string().uuid(),
+    character: z.enum(characters),
+  }),
+  z.object({ kind: z.literal("pass"), playerId: z.string().uuid() }),
+  z.object({
+    kind: z.literal("reveal"),
+    playerId: z.string().uuid(),
+    character: z.enum(characters),
+  }),
+  z.object({
+    kind: z.literal("exchange_return"),
+    playerId: z.string().uuid(),
+    keep: z.array(z.enum(characters)).min(1).max(2),
+  }),
+  z.object({ kind: z.literal("timeout"), deadlineAt: z.string().datetime() }),
+]);
+
+type RpcClient = {
+  rpc: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+};
+type PublicPendingAction = Omit<PendingAction, "exchangeCards">;
+export type PublicRoomState = {
+  pending?: PublicPendingAction;
+  actionTimeoutSeconds: number;
+  deadlineAt?: string;
+  version: number;
+};
+
+function codedError(code: string, message = code): Error {
+  return new Error(`${code}: ${message}`);
+}
+
 function makeCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let c = "";
-  for (let i = 0; i < 6; i++) c += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return c;
+  let code = "";
+  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return code;
 }
 
 async function admin() {
@@ -17,338 +72,385 @@ async function admin() {
   return supabaseAdmin;
 }
 
-// ---------- CREATE ROOM ----------
+function toPublicRoomState(state: FullState, version: number): PublicRoomState {
+  const pending = state.pending ? { ...state.pending } : undefined;
+  if (pending) delete (pending as Partial<PendingAction>).exchangeCards;
+  return {
+    pending,
+    actionTimeoutSeconds: state.actionTimeoutSeconds,
+    deadlineAt: state.deadlineAt,
+    version,
+  };
+}
+
+function playerRows(state: FullState) {
+  return state.players.map((player) => ({
+    id: player.id,
+    coins: player.coins,
+    is_alive: player.isAlive,
+    revealed: player.revealed,
+  }));
+}
+
+function handRows(state: FullState) {
+  const exchangeActor =
+    state.pending?.phase === "exchange_pick" ? state.pending.actorId : undefined;
+  const pendingCards =
+    state.pending?.phase === "exchange_pick" ? (state.pending.exchangeCards ?? []) : [];
+  return state.players.map((player) => ({
+    player_id: player.id,
+    cards: player.hand,
+    pending_cards: player.id === exchangeActor ? pendingCards : [],
+  }));
+}
+
+function eventRows(events: LogEvent[]) {
+  return events.map(({ type, payload }) => ({ type, payload }));
+}
+
+function rpcResult(data: unknown): { committed: boolean; version: number } {
+  const value = (Array.isArray(data) ? data[0] : data) as {
+    committed?: boolean;
+    version?: number;
+  } | null;
+  return { committed: value?.committed === true, version: Number(value?.version ?? 0) };
+}
+
 export const createRoom = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { name: string; actionTimeoutSeconds: number }) =>
+  .inputValidator((data: { name: string; actionTimeoutSeconds: number }) =>
     z
       .object({
-        name: z.string().min(1).max(24),
+        name: z.string().trim().min(1).max(24),
         actionTimeoutSeconds: z.number().int().min(20).max(60),
       })
-      .parse(d),
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const supa = await admin();
-    // try a few codes until unique
-    let code = "";
-    for (let i = 0; i < 6; i++) {
-      code = makeCode();
-      const { data: exists } = await supa.from("rooms").select("id").eq("code", code).maybeSingle();
-      if (!exists) break;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const code = makeCode();
+      const { data: room, error } = await supa
+        .from("rooms")
+        .insert({
+          code,
+          status: "lobby",
+          state: { actionTimeoutSeconds: data.actionTimeoutSeconds, version: 0 },
+        })
+        .select()
+        .single();
+      if (error) {
+        if (error.code === "23505") continue;
+        throw new Error(error.message);
+      }
+      const { data: player, error: playerError } = await supa
+        .from("players")
+        .insert({
+          room_id: room.id,
+          anon_user_id: context.userId,
+          name: data.name,
+          seat: 0,
+        })
+        .select()
+        .single();
+      if (playerError) throw new Error(playerError.message);
+      const { error: hostError } = await supa
+        .from("rooms")
+        .update({ host_id: player.id })
+        .eq("id", room.id);
+      if (hostError) throw new Error(hostError.message);
+      return { code, roomId: room.id, playerId: player.id };
     }
-    const { data: room, error } = await supa
-      .from("rooms")
-      .insert({ code, status: "lobby", state: { actionTimeoutSeconds: data.actionTimeoutSeconds } })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    const { data: player, error: pe } = await supa
-      .from("players")
-      .insert({
-        room_id: room.id,
-        anon_user_id: context.userId,
-        name: data.name,
-        seat: 0,
-      })
-      .select()
-      .single();
-    if (pe) throw new Error(pe.message);
-    await supa.from("rooms").update({ host_id: player.id }).eq("id", room.id);
-    return { code, roomId: room.id, playerId: player.id };
+    throw codedError("ROOM_CODE_EXHAUSTED", "Não foi possível gerar um código de sala único");
   });
 
-// ---------- JOIN ROOM ----------
 export const joinRoom = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { code: string; name: string; existingPlayerId?: string }) =>
+  .inputValidator((data: { code: string; name: string; existingPlayerId?: string }) =>
     z
       .object({
         code: z.string().min(4).max(8),
-        name: z.string().min(1).max(24),
+        name: z.string().trim().min(1).max(24),
         existingPlayerId: z.string().uuid().optional(),
       })
-      .parse(d),
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const supa = await admin();
-    const code = data.code.toUpperCase();
-    const { data: room } = await supa.from("rooms").select("*").eq("code", code).maybeSingle();
-    if (!room) throw new Error("Sala não encontrada");
-    // já entrou antes? (mesmo anon)
-    if (data.existingPlayerId) {
-      const { data: existing } = await supa
-        .from("players")
-        .select("*")
-        .eq("id", data.existingPlayerId)
-        .eq("room_id", room.id)
-        .eq("anon_user_id", context.userId)
-        .maybeSingle();
-      if (existing) return { code, roomId: room.id, playerId: existing.id };
+    const { data: result, error } = await (supa as unknown as RpcClient).rpc("join_room_atomic", {
+      p_code: data.code.toUpperCase(),
+      p_user_id: context.userId,
+      p_name: data.name,
+    });
+    if (error) {
+      const known = ["ROOM_NOT_FOUND", "ROOM_FULL", "ROOM_ALREADY_STARTED"].find((code) =>
+        error.message.includes(code),
+      );
+      throw codedError(known ?? "JOIN_FAILED", error.message);
     }
-    if (room.status !== "lobby") throw new Error("Partida já começou");
-    const { data: seats } = await supa.from("players").select("seat").eq("room_id", room.id);
-    const nextSeat = seats?.length ?? 0;
-    if (nextSeat >= 6) throw new Error("Sala cheia");
-    const { data: player, error } = await supa
-      .from("players")
-      .insert({ room_id: room.id, anon_user_id: context.userId, name: data.name, seat: nextSeat })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return { code, roomId: room.id, playerId: player.id };
+    const player = (Array.isArray(result) ? result[0] : result) as {
+      id: string;
+      room_id: string;
+    } | null;
+    if (!player) throw codedError("JOIN_FAILED");
+    return { code: data.code.toUpperCase(), roomId: player.room_id, playerId: player.id };
   });
 
 export const updateRoomTimeout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { roomId: string; actionTimeoutSeconds: number }) =>
+  .inputValidator((data: { roomId: string; actionTimeoutSeconds: number }) =>
     z
       .object({ roomId: z.string().uuid(), actionTimeoutSeconds: z.number().int().min(20).max(60) })
-      .parse(d),
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const supa = await admin();
-    const { data: room } = await supa.from("rooms").select("*").eq("id", data.roomId).single();
-    if (!room || room.status !== "lobby") throw new Error("O tempo só pode ser alterado no lobby");
-    if (!room.host_id) throw new Error("A sala ainda não possui um host");
+    const { data: room } = await supa
+      .from("rooms")
+      .select("host_id,status,state")
+      .eq("id", data.roomId)
+      .maybeSingle();
+    if (!room) throw codedError("ROOM_NOT_FOUND");
+    if (room.status !== "lobby") throw codedError("ROOM_ALREADY_STARTED");
     const { data: host } = await supa
       .from("players")
       .select("anon_user_id")
-      .eq("id", room.host_id)
-      .single();
+      .eq("id", room.host_id ?? "")
+      .eq("room_id", data.roomId)
+      .maybeSingle();
     if (host?.anon_user_id !== context.userId)
-      throw new Error("Apenas o host pode alterar o tempo");
+      throw codedError("NOT_ROOM_MEMBER", "Apenas o host pode alterar o tempo");
     const state = (room.state ?? {}) as Record<string, unknown>;
-    await supa
+    const { error } = await supa
       .from("rooms")
       .update({ state: { ...state, actionTimeoutSeconds: data.actionTimeoutSeconds } })
-      .eq("id", data.roomId);
+      .eq("id", data.roomId)
+      .eq("status", "lobby");
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
-// ---------- LOAD FULL STATE (server-side only) ----------
-async function loadFullState(roomId: string): Promise<{ room: any; state: FullState }> {
+async function loadCanonicalState(roomId: string): Promise<{ state: FullState; version: number }> {
   const supa = await admin();
-  const { data: roomRaw } = await supa.from("rooms").select("*").eq("id", roomId).single();
-  const room = roomRaw as any;
-  if (!room) throw new Error("Sala não existe");
-  const { data: players } = await supa
-    .from("players")
-    .select("*")
+  const { data, error } = await (supa as any)
+    .from("game_states")
+    .select("state,version")
     .eq("room_id", roomId)
-    .order("seat");
-  const { data: hands } = await supa
-    .from("hands")
-    .select("*")
-    .in(
-      "player_id",
-      (players ?? []).map((p: any) => p.id),
-    );
-  const handMap = new Map<string, Character[]>();
-  for (const h of hands ?? []) handMap.set(h.player_id, h.cards as Character[]);
-  const state = (room.state ?? {}) as any;
-  const full: FullState = {
-    status: room.status as FullState["status"],
-    players: (players ?? []).map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      seat: p.seat,
-      coins: p.coins,
-      isAlive: p.is_alive,
-      hand: handMap.get(p.id) ?? [],
-      revealed: (p.revealed as Character[]) ?? [],
-    })),
-    deck: (state.deck as Character[]) ?? [],
-    currentPlayerId: room.current_player_id ?? undefined,
-    pending: state.pending ?? undefined,
-    winnerId: room.winner_id ?? undefined,
-    rngSeed: state.rngSeed ?? 0,
-    actionTimeoutSeconds: state.actionTimeoutSeconds ?? 20,
-    deadlineAt: state.deadlineAt ?? undefined,
-  };
-
-  return { room, state: full };
-}
-
-async function persistState(
-  roomId: string,
-  prev: FullState,
-  next: FullState,
-  events: { type: string; payload: any }[],
-) {
-  const supa = await admin();
-  // rooms
-  await supa
-    .from("rooms")
-    .update({
-      status: next.status,
-      current_player_id: next.currentPlayerId ?? null,
-      winner_id: next.winnerId ?? null,
-      state: {
-        deck: next.deck,
-        pending: next.pending,
-        rngSeed: next.rngSeed,
-        actionTimeoutSeconds: next.actionTimeoutSeconds,
-        deadlineAt: next.deadlineAt,
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", roomId);
-  // players (only changed fields to reduce churn — but simplest to upsert)
-  for (const p of next.players) {
-    const before = prev.players.find((x) => x.id === p.id);
-    if (
-      !before ||
-      before.coins !== p.coins ||
-      before.isAlive !== p.isAlive ||
-      before.revealed.length !== p.revealed.length
-    ) {
-      await supa
-        .from("players")
-        .update({ coins: p.coins, is_alive: p.isAlive, revealed: p.revealed })
-        .eq("id", p.id);
-    }
-    if (!before || before.hand.join(",") !== p.hand.join(",")) {
-      // update hand (upsert)
-      await supa.from("hands").upsert({
-        player_id: p.id,
-        anon_user_id: (await supa.from("players").select("anon_user_id").eq("id", p.id).single())
-          .data!.anon_user_id,
-        cards: p.hand,
-      });
-    }
-  }
-  // events
-  const { data: last } = await supa
-    .from("events")
-    .select("seq")
-    .eq("room_id", roomId)
-    .order("seq", { ascending: false })
-    .limit(1)
     .maybeSingle();
-  let seq = (last?.seq ?? 0) + 1;
-  if (events.length) {
-    await supa
-      .from("events")
-      .insert(
-        events.map((e) => ({ room_id: roomId, seq: seq++, type: e.type, payload: e.payload })),
-      );
-  }
+  if (error) throw new Error(error.message);
+  if (!data) throw codedError("ROOM_NOT_FOUND", "Partida não iniciada");
+  return { state: data.state as unknown as FullState, version: Number(data.version) };
 }
 
-// ---------- START GAME ----------
 export const startGameFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { roomId: string }) => z.object({ roomId: z.string().uuid() }).parse(d))
+  .inputValidator((data: { roomId: string }) => z.object({ roomId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    const startedAt = Date.now();
     const supa = await admin();
-    const { data: room } = await supa.from("rooms").select("*").eq("id", data.roomId).single();
-    if (!room) throw new Error("Sala não existe");
-    if (!room.host_id) throw new Error("Sala sem host");
-    const { data: hostPlayer } = await supa
-      .from("players")
-      .select("*")
-      .eq("id", room.host_id)
-      .single();
-    if (!hostPlayer || hostPlayer.anon_user_id !== context.userId)
-      throw new Error("Apenas o host inicia");
-    if (room.status !== "lobby") throw new Error("Já iniciou");
+    const { data: room } = await supa
+      .from("rooms")
+      .select("state")
+      .eq("id", data.roomId)
+      .maybeSingle();
+    if (!room) throw codedError("ROOM_NOT_FOUND");
     const { data: players } = await supa
       .from("players")
-      .select("*")
+      .select("id,name,seat")
       .eq("room_id", data.roomId)
       .order("seat");
-    if (!players || players.length < 2) throw new Error("Mínimo 2 jogadores");
-    const seed = Math.floor(Math.random() * 1_000_000_000);
-    const roomState = (room.state ?? {}) as { actionTimeoutSeconds?: number };
-    const actionTimeoutSeconds = Math.min(60, Math.max(20, roomState.actionTimeoutSeconds ?? 20));
-    const state = startGame(
-      players.map((p: any) => ({ id: p.id, name: p.name, seat: p.seat })),
-      seed,
-      actionTimeoutSeconds,
+    if (!players || players.length < 2) throw codedError("INVALID_ACTION", "Mínimo de 2 jogadores");
+    const timeout = Math.min(
+      60,
+      Math.max(20, Number((room.state as Record<string, unknown>)?.actionTimeoutSeconds ?? 20)),
     );
-    state.deadlineAt = new Date(Date.now() + actionTimeoutSeconds * 1000).toISOString();
-    // persist hands
-    for (const p of state.players) {
-      await supa.from("hands").upsert({
-        player_id: p.id,
-        anon_user_id: players.find((x: any) => x.id === p.id)!.anon_user_id,
-        cards: p.hand,
-      });
+    const state = startGame(players, Math.floor(Math.random() * 1_000_000_000), timeout);
+    state.deadlineAt = new Date(Date.now() + timeout * 1000).toISOString();
+    const { data: result, error } = await (supa as unknown as RpcClient).rpc("start_game_state", {
+      p_room_id: data.roomId,
+      p_host_user_id: context.userId,
+      p_canonical_state: state,
+      p_public_state: toPublicRoomState(state, 1),
+      p_current_player_id: state.currentPlayerId,
+      p_players: playerRows(state),
+      p_hands: handRows(state),
+      p_event: { type: "game_started", payload: {} },
+    });
+    if (error) {
+      const known = [
+        "ROOM_NOT_FOUND",
+        "ROOM_ALREADY_STARTED",
+        "NOT_ROOM_MEMBER",
+        "INVALID_ACTION",
+      ].find((code) => error.message.includes(code));
+      throw codedError(known ?? "START_FAILED", error.message);
     }
-    await supa
-      .from("rooms")
-      .update({
-        status: "playing",
-        current_player_id: state.currentPlayerId,
-        state: {
-          deck: state.deck,
-          rngSeed: state.rngSeed,
-          pending: null,
-          actionTimeoutSeconds,
-          deadlineAt: state.deadlineAt,
-        },
-      })
-      .eq("id", data.roomId);
-    await supa
-      .from("events")
-      .insert({ room_id: data.roomId, seq: 1, type: "game_started", payload: {} });
-    return { ok: true };
+    const commit = rpcResult(result);
+    console.info(
+      JSON.stringify({
+        roomId: data.roomId,
+        actionKind: "start",
+        callerPlayerId: null,
+        expectedVersion: 0,
+        result: commit.committed ? "committed" : "conflict",
+        durationMs: Date.now() - startedAt,
+      }),
+    );
+    if (!commit.committed) throw codedError("ROOM_ALREADY_STARTED");
+    return { ok: true, version: commit.version };
   });
 
-// ---------- APPLY ACTION ----------
+export const restartGameFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { roomId: string }) => z.object({ roomId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const startedAt = Date.now();
+    const supa = await admin();
+    const { data: room } = await supa
+      .from("rooms")
+      .select("state,status")
+      .eq("id", data.roomId)
+      .maybeSingle();
+    if (!room) throw codedError("ROOM_NOT_FOUND");
+    if (room.status !== "finished") {
+      throw codedError("INVALID_ACTION", "A partida ainda não terminou");
+    }
+    const { data: canonical } = await supa
+      .from("game_states")
+      .select("version")
+      .eq("room_id", data.roomId)
+      .maybeSingle();
+    if (!canonical) throw codedError("ROOM_NOT_FOUND", "Estado da partida não encontrado");
+    const { data: players } = await supa
+      .from("players")
+      .select("id,name,seat")
+      .eq("room_id", data.roomId)
+      .order("seat");
+    if (!players || players.length < 2) {
+      throw codedError("INVALID_ACTION", "Mínimo de 2 jogadores");
+    }
+
+    const timeout = Math.min(
+      60,
+      Math.max(20, Number((room.state as Record<string, unknown>)?.actionTimeoutSeconds ?? 20)),
+    );
+    const state = startGame(players, Math.floor(Math.random() * 1_000_000_000), timeout);
+    state.deadlineAt = new Date(Date.now() + timeout * 1000).toISOString();
+    const expectedVersion = Number(canonical.version);
+    const { data: result, error } = await (supa as unknown as RpcClient).rpc("restart_game_state", {
+      p_room_id: data.roomId,
+      p_host_user_id: context.userId,
+      p_expected_version: expectedVersion,
+      p_canonical_state: state,
+      p_public_state: toPublicRoomState(state, expectedVersion + 1),
+      p_current_player_id: state.currentPlayerId,
+      p_players: playerRows(state),
+      p_hands: handRows(state),
+      p_event: { type: "game_restarted", payload: {} },
+    });
+    if (error) {
+      const known = ["ROOM_NOT_FOUND", "ROOM_NOT_FINISHED", "NOT_ROOM_HOST"].find((code) =>
+        error.message.includes(code),
+      );
+      throw codedError(known ?? "RESTART_FAILED", error.message);
+    }
+    const commit = rpcResult(result);
+    console.info(
+      JSON.stringify({
+        roomId: data.roomId,
+        actionKind: "restart",
+        callerPlayerId: null,
+        expectedVersion,
+        result: commit.committed ? "committed" : "conflict",
+        durationMs: Date.now() - startedAt,
+      }),
+    );
+    if (!commit.committed) throw codedError("ACTION_CONFLICT");
+    return { ok: true, version: commit.version };
+  });
+
 export const applyAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        roomId: z.string().uuid(),
-        action: z.any(),
-      })
-      .parse(d),
+  .inputValidator((data: unknown) =>
+    z.object({ roomId: z.string().uuid(), action: actionSchema }).parse(data),
   )
   .handler(async ({ data, context }) => {
+    const startedAt = Date.now();
     const supa = await admin();
-    // who is calling?
-    const act = data.action as Action;
-    // enforce identity: attach playerId from caller
-    const identityFields: Record<string, string> = {
+    const { data: caller } = await supa
+      .from("players")
+      .select("id")
+      .eq("room_id", data.roomId)
+      .eq("anon_user_id", context.userId)
+      .maybeSingle();
+    if (!caller) throw codedError("NOT_ROOM_MEMBER");
+    const identityFields = {
       action: "actorId",
       challenge: "challengerId",
       block: "blockerId",
       pass: "playerId",
       reveal: "playerId",
       exchange_return: "playerId",
-    };
-    const key = identityFields[(act as any).kind];
-    const claimedPlayerId = key ? (act as any)[key] : undefined;
-    let callerQuery = supa
-      .from("players")
-      .select("*")
-      .eq("room_id", data.roomId)
-      .eq("anon_user_id", context.userId);
-    if (claimedPlayerId) callerQuery = callerQuery.eq("id", claimedPlayerId);
-    const { data: callers } = await callerQuery.limit(1);
-    const caller = callers?.[0];
-    if (!caller) throw new Error("Você não está na sala");
-    if (key) (act as any)[key] = caller.id;
+    } as const;
+    const action = { ...data.action } as Action;
+    const identityKey = action.kind === "timeout" ? undefined : identityFields[action.kind];
+    if (identityKey) (action as unknown as Record<string, unknown>)[identityKey] = caller.id;
 
-    const { state: prev } = await loadFullState(data.roomId);
-    if (act.kind === "timeout") {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { state: previous, version } = await loadCanonicalState(data.roomId);
       if (
-        !prev.deadlineAt ||
-        act.deadlineAt !== prev.deadlineAt ||
-        Date.now() < Date.parse(prev.deadlineAt)
+        action.kind === "timeout" &&
+        (!previous.deadlineAt ||
+          action.deadlineAt !== previous.deadlineAt ||
+          Date.now() < Date.parse(previous.deadlineAt))
       ) {
-        return { ok: true };
+        return { ok: true, ignored: true, version };
       }
+      let next: FullState;
+      let events: LogEvent[];
+      try {
+        ({ state: next, events } = reduce(previous, action));
+      } catch (error) {
+        throw codedError(
+          "INVALID_ACTION",
+          error instanceof Error ? error.message : "Ação inválida",
+        );
+      }
+      next.deadlineAt =
+        next.status === "playing"
+          ? new Date(Date.now() + next.actionTimeoutSeconds * 1000).toISOString()
+          : undefined;
+      const { data: result, error } = await (supa as unknown as RpcClient).rpc(
+        "commit_game_state",
+        {
+          p_room_id: data.roomId,
+          p_expected_version: version,
+          p_canonical_state: next,
+          p_public_state: toPublicRoomState(next, version + 1),
+          p_status: next.status,
+          p_current_player_id: next.currentPlayerId ?? null,
+          p_winner_id: next.winnerId ?? null,
+          p_players: playerRows(next),
+          p_hands: handRows(next),
+          p_events: eventRows(events),
+        },
+      );
+      if (error) throw new Error(error.message);
+      const commit = rpcResult(result);
+      console.info(
+        JSON.stringify({
+          roomId: data.roomId,
+          actionKind: action.kind,
+          callerPlayerId: caller.id,
+          expectedVersion: version,
+          result: commit.committed ? "committed" : "conflict",
+          durationMs: Date.now() - startedAt,
+        }),
+      );
+      if (commit.committed) return { ok: true, version: commit.version };
     }
-    const { state: next, events } = reduce(prev, act);
-    if (next.status === "playing") {
-      next.deadlineAt = new Date(Date.now() + next.actionTimeoutSeconds * 1000).toISOString();
-    } else {
-      next.deadlineAt = undefined;
-    }
-    await persistState(data.roomId, prev, next, events);
-    return { ok: true };
+    throw codedError(
+      "ACTION_CONFLICT",
+      "A sala mudou enquanto a ação era processada; tente novamente",
+    );
   });

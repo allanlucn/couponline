@@ -3,7 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { useCoupRoom, type PlayerRow } from "@/hooks/useCoupRoom";
-import { applyAction, joinRoom, startGameFn, updateRoomTimeout } from "@/lib/coup.functions";
+import {
+  applyAction,
+  joinRoom,
+  restartGameFn,
+  startGameFn,
+  updateRoomTimeout,
+} from "@/lib/coup.functions";
 import { PlayerSeat } from "@/components/coup/PlayerSeat";
 import { ActionDock } from "@/components/coup/ActionDock";
 import { EventLog } from "@/components/coup/EventLog";
@@ -17,9 +23,11 @@ export const Route = createFileRoute("/room/$code")({
 
 function RoomPage() {
   const { code } = Route.useParams();
-  const { room, players, events, myHand, myPlayerId, uid, identityResolved } = useCoupRoom(code);
+  const { room, players, events, myHand, myPendingCards, myPlayerId, uid, identityResolved } =
+    useCoupRoom(code);
   const apply = useServerFn(applyAction);
   const start = useServerFn(startGameFn);
+  const restart = useServerFn(restartGameFn);
   const updateTimeout = useServerFn(updateRoomTimeout);
   const join = useServerFn(joinRoom);
   const [showRules, setShowRules] = useState(false);
@@ -28,6 +36,7 @@ function RoomPage() {
   const [lobbyTimeoutDraft, setLobbyTimeoutDraft] = useState(20);
   const [directJoinName, setDirectJoinName] = useState("");
   const [joiningDirectly, setJoiningDirectly] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   const nameFor = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
   const me = players.find((p) => p.id === myPlayerId);
@@ -66,6 +75,10 @@ function RoomPage() {
       setLobbyTimeoutDraft(room.state.actionTimeoutSeconds ?? 20);
     }
   }, [room?.id, room?.state.actionTimeoutSeconds, room?.status]);
+
+  useEffect(() => {
+    if (room?.status === "playing") setRestarting(false);
+  }, [room?.status]);
 
   useEffect(() => {
     if (
@@ -298,7 +311,24 @@ function RoomPage() {
         </div>
       </header>
 
-      {room.status === "finished" && <VictoryScene winnerName={nameFor(room.winner_id ?? "")} />}
+      {room.status === "finished" && (
+        <VictoryScene
+          winnerName={nameFor(room.winner_id ?? "")}
+          isHost={Boolean(isHost)}
+          restarting={restarting}
+          onRestart={async () => {
+            if (restarting || !isHost) return;
+            setRestarting(true);
+            setError(null);
+            try {
+              await restart({ data: { roomId: room.id } });
+            } catch (caught) {
+              setError(caught instanceof Error ? caught.message : "Não foi possível reiniciar");
+              setRestarting(false);
+            }
+          }}
+        />
+      )}
 
       <section className="mx-auto max-w-7xl px-3 sm:px-5">
         <TurnCarousel players={players} currentPlayerId={room.current_player_id} />
@@ -376,7 +406,7 @@ function RoomPage() {
         {pending?.phase === "exchange_pick" && pending.actorId === myPlayerId && (
           <ExchangePicker
             myHand={myHand}
-            drawn={pending.exchangeCards ?? []}
+            drawn={myPendingCards}
             handSize={myHand.length}
             onSubmit={(keep) => doAction({ kind: "exchange_return", playerId: myPlayerId, keep })}
           />
@@ -624,7 +654,17 @@ function RulesModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function VictoryScene({ winnerName }: { winnerName: string }) {
+function VictoryScene({
+  winnerName,
+  isHost,
+  restarting,
+  onRestart,
+}: {
+  winnerName: string;
+  isHost: boolean;
+  restarting: boolean;
+  onRestart: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/80 backdrop-blur">
       <div className="text-center anim-fade-up">
@@ -635,12 +675,23 @@ function VictoryScene({ winnerName }: { winnerName: string }) {
           {winnerName}
         </div>
         <div className="mt-2 text-sm opacity-80">venceu a corte</div>
-        <Link
-          to="/"
-          className="btn-primary inline-block mt-6 rounded-md px-6 py-3 text-sm font-semibold"
-        >
-          Nova partida
-        </Link>
+        {isHost ? (
+          <button
+            type="button"
+            onClick={onRestart}
+            disabled={restarting}
+            className="btn-primary mt-6 rounded-md px-6 py-3 text-sm font-semibold disabled:opacity-60"
+          >
+            {restarting ? "Preparando nova rodada..." : "Jogar novamente"}
+          </button>
+        ) : (
+          <p className="mt-6 font-bold text-white">Aguardando o host jogar novamente...</p>
+        )}
+        <div>
+          <Link to="/" className="btn-ghost mt-4 inline-block px-4 py-2 text-sm text-white">
+            Sair da sala
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -102,15 +102,17 @@ O servidor fica disponível em [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 ## Comandos
 
-| Comando             | Descrição                                    |
-| ------------------- | -------------------------------------------- |
-| `bun run dev`       | Inicia o servidor de desenvolvimento com HMR |
-| `bun run build`     | Gera o build de produção                     |
-| `bun run preview`   | Executa uma prévia do build                  |
-| `bun run lint`      | Verifica código e formatação                 |
-| `bun run typecheck` | Verifica os tipos TypeScript                 |
-| `bun run check`     | Executa lint, typecheck e build              |
-| `bun run format`    | Formata o projeto com Prettier               |
+| Comando                    | Descrição                                    |
+| -------------------------- | -------------------------------------------- |
+| `bun run dev`              | Inicia o servidor de desenvolvimento com HMR |
+| `bun run build`            | Gera o build de produção                     |
+| `bun run preview`          | Executa uma prévia do build                  |
+| `bun run lint`             | Verifica código e formatação                 |
+| `bun run typecheck`        | Verifica os tipos TypeScript                 |
+| `bun run test`             | Executa os testes unitarios                  |
+| `bun run test:integration` | Executa smoke tests contra Supabase local    |
+| `bun run check`            | Executa lint, typecheck, testes e build      |
+| `bun run format`           | Formata o projeto com Prettier               |
 
 ## Estrutura do projeto
 

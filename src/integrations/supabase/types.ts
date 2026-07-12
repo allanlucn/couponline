@@ -47,16 +47,19 @@ export type Database = {
         Row: {
           anon_user_id: string;
           cards: Json;
+          pending_cards: Json;
           player_id: string;
         };
         Insert: {
           anon_user_id: string;
           cards?: Json;
+          pending_cards?: Json;
           player_id: string;
         };
         Update: {
           anon_user_id?: string;
           cards?: Json;
+          pending_cards?: Json;
           player_id?: string;
         };
         Relationships: [
@@ -65,6 +68,35 @@ export type Database = {
             columns: ["player_id"];
             isOneToOne: true;
             referencedRelation: "players";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      game_states: {
+        Row: {
+          room_id: string;
+          state: Json;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          room_id: string;
+          state: Json;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          room_id?: string;
+          state?: Json;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_states_room_id_fkey";
+            columns: ["room_id"];
+            isOneToOne: true;
+            referencedRelation: "rooms";
             referencedColumns: ["id"];
           },
         ];
@@ -154,7 +186,52 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      commit_game_state: {
+        Args: {
+          p_canonical_state: Json;
+          p_current_player_id: string | null;
+          p_events: Json;
+          p_expected_version: number;
+          p_hands: Json;
+          p_players: Json;
+          p_public_state: Json;
+          p_room_id: string;
+          p_status: string;
+          p_winner_id: string | null;
+        };
+        Returns: Json;
+      };
+      join_room_atomic: {
+        Args: { p_code: string; p_name: string; p_user_id: string };
+        Returns: Database["public"]["Tables"]["players"]["Row"];
+      };
+      restart_game_state: {
+        Args: {
+          p_canonical_state: Json;
+          p_current_player_id: string;
+          p_event: Json;
+          p_expected_version: number;
+          p_hands: Json;
+          p_host_user_id: string;
+          p_players: Json;
+          p_public_state: Json;
+          p_room_id: string;
+        };
+        Returns: Json;
+      };
+      start_game_state: {
+        Args: {
+          p_canonical_state: Json;
+          p_current_player_id: string | null;
+          p_event: Json;
+          p_hands: Json;
+          p_host_user_id: string;
+          p_players: Json;
+          p_public_state: Json;
+          p_room_id: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       [_ in never]: never;
