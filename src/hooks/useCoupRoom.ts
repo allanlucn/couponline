@@ -64,10 +64,16 @@ export function useCoupRoom(code: string | undefined) {
         setMyHand(((h?.cards as Character[]) ?? []));
       }
 
+      const refetchHand = async (pid: string) => {
+        const { data: h } = await supabase.from("hands").select("cards").eq("player_id", pid).maybeSingle();
+        setMyHand(((h?.cards as Character[]) ?? []));
+      };
+
       const ch = supabase
         .channel(`room:${r.id}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `id=eq.${r.id}` }, (payload) => {
           if (payload.new) setRoom(payload.new as any);
+          if (me) refetchHand(me.id);
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "players", filter: `room_id=eq.${r.id}` }, async () => {
           const { data } = await supabase.from("players").select("*").eq("room_id", r.id).order("seat");
