@@ -42,17 +42,20 @@ export function EventLog({ events, nameFor }: { events: EventRow[]; nameFor: (id
         >
           <div className="h-full bg-[oklch(0.16_0.02_265)]/95 backdrop-blur border-l border-white/10 flex flex-col anim-fade-up">
             <div className="p-3 border-b border-white/10 font-display font-bold text-sm">Crônica</div>
-          {events.map((e) => {
-            const fn = LABEL[e.type];
-            return (
-              <div key={e.id} className="anim-fade-up border-l-2 border-[var(--brass)]/40 pl-2">
-                {fn ? fn(e.payload, nameFor) : e.type}
-              </div>
-            );
-          })}
-          {events.length === 0 && <div className="text-xs opacity-50">Sem eventos ainda.</div>}
-        </div>
-      </div>
-    </aside>
+            <div ref={ref} className="flex-1 overflow-y-auto p-3 space-y-2 text-sm">
+              {events.map((e) => {
+                const fn = LABEL[e.type];
+                return (
+                  <div key={e.id} className="anim-fade-up border-l-2 border-[var(--brass)]/40 pl-2">
+                    {fn ? fn(e.payload, nameFor) : e.type}
+                  </div>
+                );
+              })}
+              {events.length === 0 && <div className="text-xs opacity-50">Sem eventos ainda.</div>}
+            </div>
+          </div>
+        </aside>
+      )}
+    </>
   );
 }
