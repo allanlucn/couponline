@@ -83,11 +83,10 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props)
           Array.from({ length: handSize }).map((_, index) => (
             <InfluenceCard key={`hidden-${index}`} faceDown size="sm" />
           ))}
-        {isMe && handSize > 0 && (
-          <span className="self-center border-2 border-[var(--pop-ink)] bg-[var(--pop-warning)] px-2 py-1 text-xs font-black uppercase">
-            Sua mão está abaixo
-          </span>
-        )}
+        {isMe &&
+          (myHand ?? []).map((character, index) => (
+            <InfluenceCard key={`own-${character}-${index}`} character={character} size="sm" />
+          ))}
         {player.revealed.map((character, index) => (
           <InfluenceCard
             key={`revealed-${character}-${index}`}

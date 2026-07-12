@@ -197,7 +197,7 @@ function RoomPage() {
 
   // ============ GAME ============
   return (
-    <main className="pop-shell min-h-screen pb-[34rem] sm:pb-[30rem] lg:pb-[25rem] lg:pr-16">
+    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:pb-[18rem] lg:pr-16">
       <header className="sticky top-0 z-[60] flex items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4">
         <Link to="/" className="text-xs opacity-60 hover:opacity-100">
           ← Sair
@@ -205,12 +205,6 @@ function RoomPage() {
         <div className="ml-auto flex items-center gap-2 text-xs">
           <span className="opacity-60">Sala</span>
           <span className="font-mono tracking-widest">{code.toUpperCase()}</span>
-          <span
-            className={`pop-badge ${secondsLeft <= 5 ? "bg-[var(--pop-danger)] text-white" : "pop-badge--blue"}`}
-            aria-live="polite"
-          >
-            {secondsLeft}s
-          </span>
           <button
             onClick={() => setShowRules(true)}
             className="btn-ghost rounded-md px-2 py-1 ml-2"
@@ -235,7 +229,7 @@ function RoomPage() {
                 {players.filter((p) => p.is_alive).length} vivos
               </span>
             </div>
-            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 lg:flex-col lg:overflow-visible">
+            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 lg:h-[40rem] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3 xl:h-[42rem]">
               {players.map((p) => (
                 <div key={p.id} className="w-[17.5rem] shrink-0 snap-start lg:w-full">
                   <PlayerSeat
@@ -250,7 +244,7 @@ function RoomPage() {
             </div>
           </aside>
 
-          <div className="relative hidden min-h-[22rem] overflow-hidden border-[5px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-8 shadow-[10px_10px_0_var(--pop-ink)] pop-halftone lg:grid lg:place-items-center">
+          <div className="relative order-first grid min-h-[14rem] place-items-center overflow-hidden border-[5px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-6 shadow-[10px_10px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-[40rem] lg:w-full lg:p-8 xl:h-[42rem]">
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
             <div className="relative text-center text-white">
               <span className="pop-kicker">Na mesa!</span>
@@ -258,6 +252,17 @@ function RoomPage() {
                 {nameFor(room.current_player_id ?? "")}
               </div>
               <p className="mt-3 text-lg font-black uppercase">está decidindo a próxima jogada</p>
+              <div
+                className={`mx-auto mt-5 inline-flex min-w-28 items-center justify-center border-[4px] border-[var(--pop-ink)] px-5 py-3 font-display text-3xl font-black shadow-[5px_5px_0_var(--pop-ink)] ${
+                  secondsLeft <= 5
+                    ? "bg-[var(--pop-danger)] text-white"
+                    : "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
+                }`}
+                aria-live="polite"
+                aria-label={`${secondsLeft} segundos restantes`}
+              >
+                {secondsLeft}s
+              </div>
             </div>
           </div>
         </div>
@@ -340,6 +345,8 @@ function TurnCarousel({
       (_, offset) => alive[(previousIndex + offset) % alive.length],
     );
   }, [currentPlayerId, players]);
+  const carouselPlayers =
+    orderedPlayers.length > 1 ? [...orderedPlayers, orderedPlayers[0]] : orderedPlayers;
 
   return (
     <section aria-labelledby="turn-order-title" className="mt-5">
@@ -358,10 +365,13 @@ function TurnCarousel({
 
       <div className="overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-panel)] p-3 shadow-[7px_7px_0_var(--pop-ink)]">
         <div className="flex snap-x items-stretch gap-3 overflow-x-auto px-1 pb-2 pt-3">
-          {orderedPlayers.map((player, index) => {
+          {carouselPlayers.map((player, index) => {
             const isCurrent = player.id === currentPlayerId;
-            const label =
-              index === 0
+            const restartsCycle =
+              index === carouselPlayers.length - 1 && carouselPlayers.length > 1;
+            const label = restartsCycle
+              ? "Recomeça"
+              : index === 0
                 ? "Jogou antes"
                 : isCurrent
                   ? "Agora"
@@ -370,13 +380,15 @@ function TurnCarousel({
                     : `Depois +${index - 1}`;
             return (
               <div
-                key={player.id}
-                className={`relative flex min-h-24 w-48 shrink-0 snap-center items-center gap-3 border-[3px] border-[var(--pop-ink)] px-4 py-3 shadow-[4px_4px_0_var(--pop-ink)] transition-transform ${
+                key={`${player.id}-${index}`}
+                className={`relative flex min-h-24 w-48 shrink-0 snap-center items-center gap-3 border-[3px] border-[var(--pop-ink)] px-4 py-3 shadow-[4px_4px_0_var(--pop-ink)] transition-transform lg:min-w-48 lg:flex-1 ${
                   isCurrent
                     ? "-translate-y-2 bg-[var(--pop-warning)] ring-4 ring-[var(--pop-danger)] ring-offset-2"
                     : index === 0
                       ? "bg-[var(--pop-muted)] opacity-75"
-                      : "bg-[var(--pop-white)]"
+                      : restartsCycle
+                        ? "bg-[var(--pop-info)] text-white"
+                        : "bg-[var(--pop-white)]"
                 }`}
               >
                 <div
@@ -395,7 +407,7 @@ function TurnCarousel({
                     {player.name}
                   </div>
                 </div>
-                {index < orderedPlayers.length - 1 && (
+                {index < carouselPlayers.length - 1 && (
                   <span
                     aria-hidden="true"
                     className="absolute -right-4 z-10 font-display text-2xl font-black"

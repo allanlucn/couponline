@@ -59,7 +59,7 @@ export function ActionDock({
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
       <section
         aria-label="Ações do turno"
-        className={`pointer-events-auto mx-auto max-w-7xl p-3 sm:p-5 ${panelClass}`}
+        className={`pointer-events-auto mx-auto max-w-7xl p-3 sm:p-4 ${panelClass}`}
       >
         <PlayerHand cards={myHand} />
         {!isMyTurn ? (
@@ -141,13 +141,13 @@ function PlayerHand({
 }) {
   if (cards.length === 0) return null;
   return (
-    <div className="mb-4 border-b-[3px] border-[var(--pop-ink)] pb-4">
-      <div className="mb-2 text-center font-display text-base font-black uppercase sm:text-lg">
+    <div className="mb-3 border-b-[3px] border-[var(--pop-ink)] pb-3">
+      <div className="mb-1 text-center font-display text-sm font-black uppercase sm:text-base">
         Sua mão
       </div>
       <div className="flex items-end justify-center gap-3 sm:gap-5" aria-label="Suas influências">
         {cards.map((character, index) => {
-          const card = <InfluenceCard character={character} size="lg" />;
+          const card = <InfluenceCard character={character} size="md" />;
           return onSelect ? (
             <button
               key={`${character}-${index}`}
