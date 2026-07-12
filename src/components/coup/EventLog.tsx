@@ -60,7 +60,7 @@ export function EventLog({
         Histórico
       </button>
       {open && (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-[70]">
           <button
             className="absolute inset-0 h-full w-full cursor-default bg-black/60"
             onClick={() => setOpen(false)}

@@ -294,7 +294,7 @@ function RoomPage() {
 
   // ============ GAME ============
   return (
-    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem] lg:pr-16">
+    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem]">
       <header className="sticky top-0 z-[60] flex shrink-0 items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4 lg:py-2">
         <Link to="/" className="text-xs opacity-60 hover:opacity-100">
           ← Sair
@@ -343,7 +343,7 @@ function RoomPage() {
                 {players.filter((p) => p.is_alive).length} vivos
               </span>
             </div>
-            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
+            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 pt-4 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
               {players.map((p) => (
                 <div key={p.id} className="w-[17.5rem] shrink-0 snap-start lg:w-full">
                   <PlayerSeat
