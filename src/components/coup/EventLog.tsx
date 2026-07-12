@@ -26,21 +26,22 @@ export function EventLog({ events, nameFor }: { events: EventRow[]; nameFor: (id
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
   }, [events]);
   return (
-    <aside
-      className={`fixed right-0 top-0 h-full z-30 transition-transform ${open ? "translate-x-0 pointer-events-auto" : "translate-x-full pointer-events-none"}`}
-      style={{ width: "min(320px, 90vw)" }}
-    >
+    <>
       <button
         onClick={() => setOpen(!open)}
-        className="absolute left-0 top-4 -translate-x-full btn-ghost rounded-l-md px-2 py-3 text-xs pointer-events-auto"
+        className="fixed right-0 top-4 z-30 btn-ghost rounded-l-md px-2 py-3 text-xs"
         style={{ writingMode: "vertical-rl" }}
         aria-label="alternar log"
       >
-        {open ? "Fechar log" : "Log"}
+        {open ? "Fechar" : "Crônica"}
       </button>
-      <div className="h-full bg-[oklch(0.16_0.02_265)]/95 backdrop-blur border-l border-white/10 flex flex-col">
-        <div className="p-3 border-b border-white/10 font-display font-bold text-sm">Crônica</div>
-        <div ref={ref} className="flex-1 overflow-y-auto p-3 space-y-2 text-sm">
+      {open && (
+        <aside
+          className="fixed right-0 top-0 h-full z-30"
+          style={{ width: "min(320px, 90vw)" }}
+        >
+          <div className="h-full bg-[oklch(0.16_0.02_265)]/95 backdrop-blur border-l border-white/10 flex flex-col anim-fade-up">
+            <div className="p-3 border-b border-white/10 font-display font-bold text-sm">Crônica</div>
           {events.map((e) => {
             const fn = LABEL[e.type];
             return (
