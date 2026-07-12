@@ -21,7 +21,7 @@ const LABEL: Record<string, (p: any, name: (id: string) => string) => string> = 
 
 export function EventLog({ events, nameFor }: { events: EventRow[]; nameFor: (id: string) => string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
   }, [events]);
