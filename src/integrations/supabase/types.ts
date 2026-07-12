@@ -14,7 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string
+          id: number
+          payload: Json
+          room_id: string
+          seq: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          payload?: Json
+          room_id: string
+          seq: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          payload?: Json
+          room_id?: string
+          seq?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hands: {
+        Row: {
+          anon_user_id: string
+          cards: Json
+          player_id: string
+        }
+        Insert: {
+          anon_user_id: string
+          cards?: Json
+          player_id: string
+        }
+        Update: {
+          anon_user_id?: string
+          cards?: Json
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hands_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          anon_user_id: string
+          coins: number
+          id: string
+          is_alive: boolean
+          joined_at: string
+          name: string
+          revealed: Json
+          room_id: string
+          seat: number
+        }
+        Insert: {
+          anon_user_id: string
+          coins?: number
+          id?: string
+          is_alive?: boolean
+          joined_at?: string
+          name: string
+          revealed?: Json
+          room_id: string
+          seat: number
+        }
+        Update: {
+          anon_user_id?: string
+          coins?: number
+          id?: string
+          is_alive?: boolean
+          joined_at?: string
+          name?: string
+          revealed?: Json
+          room_id?: string
+          seat?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          code: string
+          created_at: string
+          current_player_id: string | null
+          host_id: string | null
+          id: string
+          state: Json
+          status: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_player_id?: string | null
+          host_id?: string | null
+          id?: string
+          state?: Json
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_player_id?: string | null
+          host_id?: string | null
+          id?: string
+          state?: Json
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
