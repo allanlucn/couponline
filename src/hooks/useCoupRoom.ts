@@ -45,6 +45,7 @@ export function useCoupRoom(code: string | undefined) {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [myHand, setMyHand] = useState<Character[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [identityResolved, setIdentityResolved] = useState(false);
 
   useEffect(() => {
     ensureAnon().then(setUid);
@@ -52,6 +53,7 @@ export function useCoupRoom(code: string | undefined) {
 
   useEffect(() => {
     if (!code || !uid) return;
+    setIdentityResolved(false);
     let mounted = true;
     (async () => {
       const { data: r } = await supabase
@@ -92,6 +94,7 @@ export function useCoupRoom(code: string | undefined) {
           .maybeSingle();
         setMyHand((h?.cards as Character[]) ?? []);
       }
+      setIdentityResolved(true);
 
       const refetchHand = async (pid: string) => {
         const { data: h } = await supabase
@@ -157,5 +160,5 @@ export function useCoupRoom(code: string | undefined) {
     };
   }, [code, uid]);
 
-  return { uid, room, players, events, myHand, myPlayerId };
+  return { uid, room, players, events, myHand, myPlayerId, identityResolved };
 }

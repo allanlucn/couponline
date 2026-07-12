@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { useCoupRoom, type PlayerRow } from "@/hooks/useCoupRoom";
-import { applyAction, startGameFn, updateRoomTimeout } from "@/lib/coup.functions";
+import { applyAction, joinRoom, startGameFn, updateRoomTimeout } from "@/lib/coup.functions";
 import { PlayerSeat } from "@/components/coup/PlayerSeat";
 import { ActionDock } from "@/components/coup/ActionDock";
 import { EventLog } from "@/components/coup/EventLog";
@@ -17,14 +17,17 @@ export const Route = createFileRoute("/room/$code")({
 
 function RoomPage() {
   const { code } = Route.useParams();
-  const { room, players, events, myHand, myPlayerId, uid } = useCoupRoom(code);
+  const { room, players, events, myHand, myPlayerId, uid, identityResolved } = useCoupRoom(code);
   const apply = useServerFn(applyAction);
   const start = useServerFn(startGameFn);
   const updateTimeout = useServerFn(updateRoomTimeout);
+  const join = useServerFn(joinRoom);
   const [showRules, setShowRules] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
   const [lobbyTimeoutDraft, setLobbyTimeoutDraft] = useState(20);
+  const [directJoinName, setDirectJoinName] = useState("");
+  const [joiningDirectly, setJoiningDirectly] = useState(false);
 
   const nameFor = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
   const me = players.find((p) => p.id === myPlayerId);
@@ -87,6 +90,87 @@ function RoomPage() {
     return (
       <main className="min-h-screen grid place-items-center">
         <div className="text-center opacity-70">Carregando sala…</div>
+      </main>
+    );
+  }
+
+  async function handleDirectJoin() {
+    if (!directJoinName.trim() || joiningDirectly || !uid) return;
+    setJoiningDirectly(true);
+    setError(null);
+    try {
+      const result = await join({
+        data: { code: code.toUpperCase(), name: directJoinName.trim() },
+      });
+      sessionStorage.setItem(`coup:player:${result.code}`, result.playerId);
+      window.location.reload();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível entrar");
+      setJoiningDirectly(false);
+    }
+  }
+
+  if (identityResolved && !myPlayerId) {
+    if (room.status !== "lobby") {
+      return (
+        <main className="pop-shell grid min-h-screen place-items-center px-4">
+          <section className="pop-panel max-w-lg p-6 text-center sm:p-8">
+            <span className="pop-kicker">Partida em andamento</span>
+            <h1 className="mt-5 font-display text-4xl font-black uppercase">Entrada encerrada</h1>
+            <p className="mt-3 font-semibold">Esta sala já iniciou e não aceita novos jogadores.</p>
+            <Link to="/" className="btn-primary mt-6 inline-flex px-6 py-3 font-black uppercase">
+              Voltar ao início
+            </Link>
+          </section>
+        </main>
+      );
+    }
+
+    return (
+      <main className="pop-shell grid min-h-screen place-items-center px-4 py-10">
+        <section className="pop-panel w-full max-w-lg p-6 sm:p-8">
+          <span className="pop-kicker -rotate-1">Convite recebido!</span>
+          <h1 className="mt-5 font-display text-4xl font-black uppercase sm:text-5xl">
+            Entre na sala
+          </h1>
+          <p className="mt-2 font-semibold">
+            Sala <strong className="font-mono tracking-widest">{code.toUpperCase()}</strong>
+          </p>
+          <label
+            htmlFor="direct-join-name"
+            className="mt-6 block text-xs font-black uppercase tracking-wider"
+          >
+            Seu codinome
+          </label>
+          <input
+            id="direct-join-name"
+            value={directJoinName}
+            onChange={(event) => setDirectJoinName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleDirectJoin();
+            }}
+            maxLength={24}
+            placeholder="Ex.: Raposa Escarlate"
+            className="pop-input mt-2"
+            autoFocus
+          />
+          <button
+            type="button"
+            disabled={joiningDirectly || !uid || !directJoinName.trim()}
+            onClick={handleDirectJoin}
+            className="btn-primary mt-6 min-h-14 w-full px-5 py-3 font-black uppercase"
+          >
+            {joiningDirectly ? "Entrando..." : "Entrar na sala"}
+          </button>
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 border-3 border-[var(--pop-ink)] bg-[var(--pop-danger)] px-3 py-2 font-bold text-white"
+            >
+              {error}
+            </div>
+          )}
+        </section>
       </main>
     );
   }
