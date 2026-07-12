@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PlayerRow } from "@/hooks/useCoupRoom";
 import type { ActionType, Character, PendingAction } from "@/game/types";
 import { ACTION_META, CHARACTER_META } from "@/game/types";
+import { InfluenceCard } from "./InfluenceCard";
 
 type Props = {
   players: PlayerRow[];
@@ -9,7 +10,8 @@ type Props = {
   currentPlayerId: string | null;
   pending: PendingAction | null | undefined;
   myCoins: number;
-  onAction: (act: any) => Promise<void>;
+  myHand: Character[];
+  onAction: (act: unknown) => Promise<void>;
 };
 
 const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean }[] = [
@@ -22,7 +24,20 @@ const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean
   { type: "exchange", label: "Trocar", hint: "Embaixador · sacar 2" },
 ];
 
-export function ActionDock({ players, myPlayerId, currentPlayerId, pending, myCoins, onAction }: Props) {
+const panelClass =
+  "border-[3px] border-[var(--pop-ink,#101114)] bg-[var(--pop-panel,#fff5dc)] text-[var(--pop-ink,#101114)] shadow-[6px_6px_0_var(--pop-ink,#101114)]";
+const buttonBase =
+  "min-h-14 border-[3px] border-[var(--pop-ink,#101114)] px-4 py-3 text-left text-base font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-y-0";
+
+export function ActionDock({
+  players,
+  myPlayerId,
+  currentPlayerId,
+  pending,
+  myCoins,
+  myHand,
+  onAction,
+}: Props) {
   const [picking, setPicking] = useState<ActionType | null>(null);
   const me = players.find((p) => p.id === myPlayerId);
   if (!me) return null;
@@ -34,64 +49,121 @@ export function ActionDock({ players, myPlayerId, currentPlayerId, pending, myCo
     await onAction({ kind: "action", type, actorId: myPlayerId, targetId });
   }
 
-  // pending-driven UI
   if (pending && me.is_alive) {
-    return <PendingUI pending={pending} me={me} players={players} onAction={onAction} />;
+    return (
+      <PendingUI pending={pending} me={me} players={players} myHand={myHand} onAction={onAction} />
+    );
   }
 
   return (
-    <div className="fixed left-0 right-0 bottom-0 z-20 pointer-events-none">
-      <div className="mx-auto max-w-4xl p-3 pointer-events-auto">
-        <div className="bg-[oklch(0.18_0.02_265)]/90 backdrop-blur rounded-t-xl border border-white/10 border-b-0 p-3">
-          {!isMyTurn ? (
-            <div className="text-center text-sm text-muted-foreground py-2">
-              {currentPlayerId
-                ? `Aguardando ${players.find((p) => p.id === currentPlayerId)?.name ?? "…"}`
-                : "Aguardando…"}
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+      <section
+        aria-label="Ações do turno"
+        className={`pointer-events-auto mx-auto max-w-7xl p-3 sm:p-5 ${panelClass}`}
+      >
+        <PlayerHand cards={myHand} />
+        {!isMyTurn ? (
+          <div className="py-2 text-center text-sm font-bold" role="status" aria-live="polite">
+            {currentPlayerId
+              ? `Aguardando ${players.find((p) => p.id === currentPlayerId)?.name ?? "…"}`
+              : "Aguardando…"}
+          </div>
+        ) : picking ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <strong className="font-display text-base uppercase">Escolha o alvo</strong>
+              <span className="rounded-full border-2 border-current px-2 py-0.5 text-xs">
+                {ACTION_META[picking].name}
+              </span>
             </div>
-          ) : picking ? (
-            <div>
-              <div className="text-sm mb-2">Escolha o alvo:</div>
-              <div className="flex flex-wrap gap-2">
-                {players
-                  .filter((p) => p.id !== myPlayerId && p.is_alive)
-                  .map((p) => (
-                    <button key={p.id} onClick={() => doAction(picking, p.id)} className="btn-danger rounded-md px-3 py-2 text-sm">
-                      {p.name}
-                    </button>
-                  ))}
-                <button onClick={() => setPicking(null)} className="btn-ghost rounded-md px-3 py-2 text-sm">
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {ACTIONS.map((a) => {
-                const meta = ACTION_META[a.type];
-                const disabled =
-                  (mustCoup && a.type !== "coup") ||
-                  (meta.cost && myCoins < meta.cost) ||
-                  false;
-                return (
+            <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto p-1">
+              {players
+                .filter((p) => p.id !== myPlayerId && p.is_alive)
+                .map((p) => (
                   <button
-                    key={a.type}
-                    disabled={!!disabled}
-                    onClick={() => {
-                      if (meta.targeted) setPicking(a.type);
-                      else doAction(a.type);
-                    }}
-                    className={`${a.danger ? "btn-danger" : "btn-primary"} rounded-md px-3 py-2 text-sm text-left`}
-                    title={a.hint}
+                    key={p.id}
+                    onClick={() => doAction(picking, p.id)}
+                    className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white`}
                   >
-                    <div className="font-semibold">{a.label}</div>
-                    <div className="text-[10px] opacity-80 truncate">{a.hint}</div>
+                    {p.name}
                   </button>
-                );
-              })}
+                ))}
+              <button
+                onClick={() => setPicking(null)}
+                className={`${buttonBase} bg-[var(--pop-white,#fffdf7)]`}
+              >
+                Cancelar
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {ACTIONS.map((a) => {
+              const meta = ACTION_META[a.type];
+              const disabled =
+                (mustCoup && a.type !== "coup") || (meta.cost && myCoins < meta.cost) || false;
+              return (
+                <button
+                  key={a.type}
+                  disabled={!!disabled}
+                  onClick={() => (meta.targeted ? setPicking(a.type) : doAction(a.type))}
+                  className={`${buttonBase} ${a.danger ? "bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"}`}
+                  title={a.hint}
+                  aria-label={`${a.label}: ${a.hint}`}
+                >
+                  <span className="block font-display text-base uppercase sm:text-lg">
+                    {a.label}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
+                    {a.hint}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {isMyTurn && mustCoup && !picking && (
+          <p className="mt-2 text-center text-xs font-bold" role="status">
+            Com 10 moedas, o Golpe é obrigatório.
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PlayerHand({
+  cards,
+  onSelect,
+}: {
+  cards: Character[];
+  onSelect?: (character: Character) => void;
+}) {
+  if (cards.length === 0) return null;
+  return (
+    <div className="mb-4 border-b-[3px] border-[var(--pop-ink)] pb-4">
+      <div className="mb-2 text-center font-display text-base font-black uppercase sm:text-lg">
+        Sua mão
+      </div>
+      <div className="flex items-end justify-center gap-3 sm:gap-5" aria-label="Suas influências">
+        {cards.map((character, index) => {
+          const card = <InfluenceCard character={character} size="lg" />;
+          return onSelect ? (
+            <button
+              key={`${character}-${index}`}
+              type="button"
+              onClick={() => onSelect(character)}
+              className="rounded-md transition-transform hover:-translate-y-2 focus-visible:-translate-y-2 motion-reduce:transition-none"
+              aria-label={`Revelar ${CHARACTER_META[character].name}`}
+            >
+              {card}
+            </button>
+          ) : (
+            <div key={`${character}-${index}`} className="-mb-1 first:-rotate-2 last:rotate-2">
+              {card}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -101,97 +173,118 @@ function PendingUI({
   pending,
   me,
   players,
+  myHand,
   onAction,
 }: {
   pending: PendingAction;
   me: PlayerRow;
   players: PlayerRow[];
-  onAction: (a: any) => Promise<void>;
+  myHand: Character[];
+  onAction: (a: unknown) => Promise<void>;
 }) {
-  const [revealing, setRevealing] = useState<Character | null>(null);
   const actor = players.find((p) => p.id === pending.actorId);
   const meta = ACTION_META[pending.type];
   const target = pending.targetId ? players.find((p) => p.id === pending.targetId) : null;
 
-  // Loss of influence — my turn to reveal
   if (pending.phase === "lose_influence" && pending.loseInfluence?.playerId === me.id) {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-20 p-3">
-        <div className="mx-auto max-w-2xl bg-[var(--bordeaux)]/95 backdrop-blur rounded-t-xl border border-white/10 p-4 text-center">
-          <div className="font-display text-lg mb-2">Você deve perder uma influência.</div>
-          <p className="text-sm mb-3 opacity-90">Escolha qual carta revelar (ela sai do jogo).</p>
-          <div id="reveal-picker" className="text-xs opacity-70">
+      <div className="fixed inset-0 z-40 grid place-items-center bg-[var(--pop-ink)]/25 px-4 pb-24 sm:pb-28">
+        <section
+          aria-labelledby="lose-influence-title"
+          className={`anim-fade-up w-full max-w-2xl border-[5px] p-6 text-center shadow-[10px_10px_0_var(--pop-ink)] sm:p-8 ${panelClass}`}
+        >
+          <h2 id="lose-influence-title" className="font-display text-2xl uppercase sm:text-4xl">
+            Você deve perder uma influência!
+          </h2>
+          <p className="mt-1 text-sm font-medium">Escolha qual carta revelar. Ela sairá do jogo.</p>
+          <div
+            id="reveal-picker"
+            className="mt-2 border-2 border-dashed border-current bg-[var(--pop-danger,#d7193f)] p-2 text-xs font-bold text-white"
+          >
             Toque numa carta da sua mão abaixo para revelá-la.
           </div>
-          <RevealButtons me={me} onReveal={(c) => onAction({ kind: "reveal", playerId: me.id, character: c })} />
-        </div>
+          <div
+            className={`fixed inset-x-2 bottom-2 z-50 mx-auto max-w-4xl p-3 sm:p-4 ${panelClass}`}
+          >
+            <PlayerHand
+              cards={myHand}
+              onSelect={(character) => onAction({ kind: "reveal", playerId: me.id, character })}
+            />
+          </div>
+        </section>
       </div>
     );
   }
 
-  const isChallengePhase = pending.phase === "challenge_action" || pending.phase === "challenge_block";
+  const isChallengePhase =
+    pending.phase === "challenge_action" || pending.phase === "challenge_block";
   const isBlockPhase = pending.phase === "block_window";
-
-  const excluded =
-    pending.phase === "challenge_block" ? pending.block!.blockerId : pending.actorId;
+  const excluded = pending.phase === "challenge_block" ? pending.block!.blockerId : pending.actorId;
   const canReact = me.id !== excluded && me.is_alive && !pending.passed.includes(me.id);
   const claimingChar =
     pending.phase === "challenge_block" ? pending.block!.character : meta.character;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 p-3">
-      <div className="mx-auto max-w-3xl bg-[oklch(0.18_0.02_265)]/95 backdrop-blur rounded-t-xl border border-white/10 p-3 anim-fade-up">
-        <div className="text-sm mb-3">
-          <span className="font-display text-base">
+    <div className="fixed inset-0 z-40 grid place-items-center bg-[var(--pop-ink)]/20 px-4 pb-24 sm:pb-28">
+      <section
+        aria-label="Reação pendente"
+        className={`anim-fade-up w-full max-w-3xl border-[5px] p-6 shadow-[10px_10px_0_var(--pop-ink)] sm:p-8 ${panelClass}`}
+      >
+        <div className={`fixed inset-x-2 bottom-2 z-50 mx-auto max-w-4xl p-3 sm:p-4 ${panelClass}`}>
+          <PlayerHand cards={myHand} />
+        </div>
+        <p className="mb-3 text-sm font-medium" aria-live="polite">
+          <span className="font-display text-xl uppercase sm:text-3xl">
             {actor?.name} declara <b>{meta.name}</b>
             {target && (
               <>
-                {" "}em <b>{target.name}</b>
+                {" "}
+                em <b>{target.name}</b>
               </>
             )}
             {claimingChar && (
               <>
-                {" · "}alega <b>{CHARACTER_META[claimingChar].name}</b>
+                {" "}
+                · alega <b>{CHARACTER_META[claimingChar].name}</b>
               </>
             )}
           </span>
-        </div>
-
+        </p>
         {canReact && isChallengePhase && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-4">
             <button
               onClick={() => onAction({ kind: "challenge", challengerId: me.id })}
-              className="btn-danger rounded-md px-3 py-2 text-sm"
+              className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white`}
             >
               Desafiar {claimingChar ? `(${CHARACTER_META[claimingChar].name})` : ""}
             </button>
             <button
               onClick={() => onAction({ kind: "pass", playerId: me.id })}
-              className="btn-ghost rounded-md px-3 py-2 text-sm"
+              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)]`}
             >
               Passar
             </button>
           </div>
         )}
-
         {canReact && isBlockPhase && (
-          <div className="flex flex-wrap gap-2">
-            <BlockButtons pending={pending} me={me} onAction={onAction} />
+          <div className="flex flex-wrap justify-center gap-4">
+            <BlockButtons pending={pending} me={me} myHand={myHand} onAction={onAction} />
             <button
               onClick={() => onAction({ kind: "pass", playerId: me.id })}
-              className="btn-ghost rounded-md px-3 py-2 text-sm"
+              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)]`}
             >
               Passar
             </button>
           </div>
         )}
-
         {!canReact && (
-          <div className="text-xs text-muted-foreground">
-            {pending.passed.includes(me.id) ? "Você já passou. Aguardando os demais…" : "Aguardando reação dos outros…"}
+          <div className="text-center text-base font-bold" role="status">
+            {pending.passed.includes(me.id)
+              ? "Você já passou. Aguardando os demais…"
+              : "Aguardando reação dos outros…"}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -199,35 +292,75 @@ function PendingUI({
 function BlockButtons({
   pending,
   me,
+  myHand,
   onAction,
 }: {
   pending: PendingAction;
   me: PlayerRow;
-  onAction: (a: any) => Promise<void>;
+  myHand: Character[];
+  onAction: (a: unknown) => Promise<void>;
 }) {
-  const t = pending.type;
+  const [choosingCharacter, setChoosingCharacter] = useState(false);
   const options: Character[] = [];
-  if (t === "foreign_aid") options.push("duke");
-  else if (t === "assassinate" && me.id === pending.targetId) options.push("contessa");
-  else if (t === "steal" && me.id === pending.targetId) options.push("captain", "ambassador");
+  if (pending.type === "foreign_aid") options.push("duke");
+  else if (pending.type === "assassinate" && me.id === pending.targetId) options.push("contessa");
+  else if (pending.type === "steal" && me.id === pending.targetId)
+    options.push("captain", "ambassador");
   if (options.length === 0) return null;
-  return (
-    <>
-      {options.map((c) => (
-        <button
-          key={c}
-          onClick={() => onAction({ kind: "block", blockerId: me.id, character: c })}
-          className="btn-primary rounded-md px-3 py-2 text-sm"
-        >
-          Bloquear como {CHARACTER_META[c].name}
-        </button>
-      ))}
-    </>
-  );
-}
 
-function RevealButtons({ me, onReveal }: { me: PlayerRow; onReveal: (c: Character) => void }) {
-  // We don't have the hand here directly — but Reveal buttons will send the character.
-  // We ask the parent to render the hand and pass hand cards as buttons.
-  return null;
+  if (!choosingCharacter) {
+    return (
+      <button
+        onClick={() => setChoosingCharacter(true)}
+        className={`${buttonBase} bg-[var(--pop-info,#087985)] text-white`}
+      >
+        Bloquear como...
+      </button>
+    );
+  }
+
+  const sortedOptions = [...options].sort(
+    (a, b) => Number(myHand.includes(b)) - Number(myHand.includes(a)),
+  );
+
+  return (
+    <div className="w-full">
+      <div className="mb-3 text-center font-display text-lg font-black uppercase">
+        Escolha quem vocÃª vai alegar
+      </div>
+      <div className="flex flex-wrap items-stretch justify-center gap-4">
+        {sortedOptions.map((c) => {
+          const isInHand = myHand.includes(c);
+          return (
+            <button
+              key={c}
+              onClick={() => onAction({ kind: "block", blockerId: me.id, character: c })}
+              className={`relative flex min-w-36 flex-col items-center gap-2 border-[4px] border-[var(--pop-ink)] p-3 font-black shadow-[5px_5px_0_var(--pop-ink)] transition-transform hover:-translate-y-1 ${
+                isInHand
+                  ? "-translate-y-2 bg-[var(--pop-warning)] text-[var(--pop-ink)] ring-4 ring-[var(--pop-danger)] ring-offset-2"
+                  : "bg-[var(--pop-white)] text-[var(--pop-ink)]"
+              }`}
+            >
+              {isInHand && (
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap border-2 border-[var(--pop-ink)] bg-[var(--pop-danger)] px-2 py-1 text-xs uppercase text-white">
+                  Na sua mÃ£o
+                </span>
+              )}
+              <InfluenceCard character={c} size="md" />
+              <span className="font-display text-lg uppercase">{CHARACTER_META[c].name}</span>
+              <span className="text-xs uppercase opacity-70">
+                {isInHand ? "Bloqueio real" : "Blefe"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => setChoosingCharacter(false)}
+        className={`${buttonBase} mx-auto mt-4 bg-[var(--pop-white)]`}
+      >
+        Voltar
+      </button>
+    </div>
+  );
 }

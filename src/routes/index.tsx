@@ -7,8 +7,8 @@ import { useAnonSession } from "@/lib/anon-auth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Coup Online — Corte de Blefes" },
-      { name: "description", content: "Jogo online de blefe e traição inspirado em Coup. Crie uma sala e jogue com amigos direto do navegador — sem contas." },
+      { title: "Coup Online — O blefe começa aqui" },
+      { name: "description", content: "Jogo online de blefe e estratégia para 2 a 6 jogadores." },
     ],
   }),
   component: Landing,
@@ -19,85 +19,207 @@ function Landing() {
   const uid = useAnonSession();
   const create = useServerFn(createRoom);
   const join = useServerFn(joinRoom);
+  const [mode, setMode] = useState<"create" | "join" | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [actionTimeoutSeconds, setActionTimeoutSeconds] = useState(20);
+
+  function chooseMode(nextMode: "create" | "join") {
+    setMode(nextMode);
+    setErr(null);
+  }
 
   async function handleCreate() {
     if (!name.trim()) return setErr("Digite um nome de exibição");
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
-      const res = await create({ data: { name: name.trim() } });
+      const res = await create({ data: { name: name.trim(), actionTimeoutSeconds } });
       sessionStorage.setItem(`coup:player:${res.code}`, res.playerId);
       navigate({ to: "/room/$code", params: { code: res.code } });
-    } catch (e: any) { setErr(e.message ?? "Erro"); }
-    finally { setBusy(false); }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Não foi possível criar a sala");
+    } finally {
+      setBusy(false);
+    }
   }
+
   async function handleJoin() {
-    if (!name.trim()) return setErr("Digite um nome");
+    if (!name.trim()) return setErr("Digite um nome de exibição");
     if (code.trim().length < 4) return setErr("Digite o código da sala");
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
-      const res = await join({ data: { name: name.trim(), code: code.trim().toUpperCase() } });
+      const normalizedCode = code.trim().toUpperCase();
+      const res = await join({
+        data: { name: name.trim(), code: normalizedCode },
+      });
       sessionStorage.setItem(`coup:player:${res.code}`, res.playerId);
       navigate({ to: "/room/$code", params: { code: res.code } });
-    } catch (e: any) { setErr(e.message ?? "Erro"); }
-    finally { setBusy(false); }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Não foi possível entrar na sala");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="min-h-screen grid place-items-center px-4 py-10">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="wax-seal w-14 h-14 rounded-full grid place-items-center font-display font-black text-2xl">C</div>
-          </div>
-          <h1 className="font-display text-5xl sm:text-6xl font-black leading-none">
-            Corte de <span className="text-[var(--brass)] italic">Blefes</span>
+    <main className="pop-shell min-h-screen overflow-hidden px-4 py-8 sm:py-12">
+      <div className="pointer-events-none absolute -left-16 top-16 h-40 w-40 rounded-full bg-[var(--pop-warning)] pop-halftone" />
+      <div className="pointer-events-none absolute -right-20 bottom-8 h-56 w-56 rotate-12 bg-[var(--pop-danger)] pop-halftone [clip-path:polygon(50%_0,61%_34%,98%_20%,70%_50%,100%_72%,62%_67%,50%_100%,38%_67%,0_72%,30%_50%,2%_20%,39%_34%)]" />
+      <div className="relative mx-auto grid min-h-[calc(100vh-6rem)] w-full max-w-5xl items-center gap-8 lg:grid-cols-[1.05fr_.95fr]">
+        <section className="text-center lg:text-left">
+          <span className="pop-kicker inline-block -rotate-2">Blefe • Desafie • Domine</span>
+          <h1 className="mt-5 font-display text-6xl font-black uppercase leading-[.82] sm:text-7xl lg:text-8xl">
+            Coup
+            <span className="block text-[var(--pop-danger)] [text-shadow:4px_4px_0_var(--pop-ink)]">
+              Online!
+            </span>
           </h1>
-          <p className="mt-3 text-muted-foreground text-sm sm:text-base max-w-md mx-auto">
-            Um duelo de máscaras e mentiras entre 2 e 6 nobres. Nenhuma conta. Nenhuma senha. Só a sua palavra — e o quanto ela vale.
+          <p className="mx-auto mt-6 max-w-lg text-base font-semibold leading-relaxed lg:mx-0 lg:text-lg">
+            Máscaras, moedas e mentiras em uma disputa rápida para 2 a 6 jogadores.
           </p>
-        </div>
-
-        <div className="parchment rounded-lg p-6 space-y-5">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest mb-1 text-[oklch(0.35_0.1_25)]">Seu nome na corte</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={24}
-              placeholder="Ex.: Vespasiano"
-              className="w-full rounded-md border border-[oklch(0.5_0.08_40)]/40 bg-[oklch(0.95_0.02_75)] px-3 py-2 text-[oklch(0.2_0.05_30)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--bordeaux)]"
-            />
+          <div
+            className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start"
+            aria-label="Destaques"
+          >
+            <span className="pop-badge">2–6 jogadores</span>
+            <span className="pop-badge pop-badge--yellow">Partidas rápidas</span>
+            <span className="pop-badge pop-badge--blue">Grátis</span>
           </div>
+        </section>
 
-          <div className="grid gap-2">
-            <button onClick={handleCreate} disabled={busy || !uid} className="btn-primary w-full rounded-md py-2.5 text-sm font-semibold">
-              Fundar uma nova sala
-            </button>
-            <div className="text-center text-xs text-[oklch(0.35_0.08_30)]/70 my-1">ou</div>
-            <div className="flex gap-2">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                maxLength={8}
-                placeholder="CÓDIGO"
-                className="w-full rounded-md border border-[oklch(0.5_0.08_40)]/40 bg-[oklch(0.95_0.02_75)] px-3 py-2 text-[oklch(0.2_0.05_30)] font-mono tracking-widest text-center uppercase focus:outline-none focus:ring-2 focus:ring-[var(--bordeaux)]"
-              />
-              <button onClick={handleJoin} disabled={busy || !uid} className="btn-danger rounded-md px-4 py-2 text-sm font-semibold whitespace-nowrap">
-                Entrar
+        <section className="pop-panel relative p-5 sm:p-7" aria-labelledby="play-title">
+          <div className="absolute -right-3 -top-4 rotate-3 border-3 border-[var(--pop-ink)] bg-[var(--pop-warning)] px-3 py-1 font-display text-sm font-black uppercase">
+            Jogue agora!
+          </div>
+          <h2 id="play-title" className="font-display text-3xl font-black uppercase">
+            Entre na disputa
+          </h2>
+          <p className="mt-1 text-sm font-medium opacity-70">
+            {mode ? "Complete os dados para continuar." : "O que você quer fazer?"}
+          </p>
+
+          {!mode ? (
+            <div className="mt-6 grid gap-4">
+              <button
+                type="button"
+                onClick={() => chooseMode("create")}
+                className="btn-primary min-h-16 w-full px-5 py-4 font-display text-xl font-black uppercase"
+              >
+                Criar uma sala
+              </button>
+              <button
+                type="button"
+                onClick={() => chooseMode("join")}
+                className="btn-danger min-h-16 w-full px-5 py-4 font-display text-xl font-black uppercase"
+              >
+                Entrar em uma sala
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="mt-5 anim-fade-up">
+              <button
+                type="button"
+                onClick={() => setMode(null)}
+                className="btn-ghost mb-5 px-4 py-2 text-sm font-black uppercase"
+              >
+                ← Voltar
+              </button>
+              <div className="pop-kicker mb-4 text-sm">
+                {mode === "create" ? "Nova sala" : "Entrar com código"}
+              </div>
 
-          {err && <div className="text-sm text-[var(--bordeaux)] font-medium">{err}</div>}
-        </div>
+              <label
+                className="block text-xs font-black uppercase tracking-wider"
+                htmlFor="player-name"
+              >
+                Seu codinome
+              </label>
+              <input
+                id="player-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={24}
+                placeholder="Ex.: Raposa Escarlate"
+                className="pop-input mt-2"
+                autoComplete="nickname"
+                autoFocus
+              />
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          Baseado nas regras de Coup (Rikki Tahta). Arte e código originais.
-        </p>
+              {mode === "create" ? (
+                <>
+                  <div className="mt-5">
+                    <label
+                      htmlFor="turn-time"
+                      className="flex items-center justify-between text-xs font-black uppercase tracking-wider"
+                    >
+                      <span>Tempo por ação</span>
+                      <strong className="pop-badge pop-badge--blue">{actionTimeoutSeconds}s</strong>
+                    </label>
+                    <input
+                      id="turn-time"
+                      type="range"
+                      min={20}
+                      max={60}
+                      step={5}
+                      value={actionTimeoutSeconds}
+                      onChange={(event) => setActionTimeoutSeconds(Number(event.target.value))}
+                      className="mt-3 h-3 w-full accent-[var(--pop-danger)]"
+                    />
+                    <p className="mt-2 text-xs font-bold opacity-65">
+                      Configuração exclusiva do host; ela ainda pode ser alterada no lobby.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCreate}
+                    disabled={busy || !uid}
+                    className="btn-primary mt-6 min-h-14 w-full px-5 py-3 font-black uppercase"
+                  >
+                    {busy ? "Preparando..." : "Confirmar e criar sala"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label
+                    className="mt-5 block text-xs font-black uppercase tracking-wider"
+                    htmlFor="room-code"
+                  >
+                    Código da sala
+                  </label>
+                  <input
+                    id="room-code"
+                    value={code}
+                    onChange={(event) =>
+                      setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+                    }
+                    maxLength={8}
+                    placeholder="CÓDIGO"
+                    className="pop-input mt-2 text-center font-mono text-lg uppercase tracking-[.25em]"
+                  />
+                  <button
+                    onClick={handleJoin}
+                    disabled={busy || !uid}
+                    className="btn-danger mt-6 min-h-14 w-full px-6 py-3 font-black uppercase"
+                  >
+                    {busy ? "Entrando..." : "Entrar na sala"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {err && (
+            <div
+              role="alert"
+              className="mt-4 border-3 border-[var(--pop-ink)] bg-[var(--pop-danger)] px-3 py-2 text-sm font-bold text-white"
+            >
+              {err}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

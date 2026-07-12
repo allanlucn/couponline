@@ -9,7 +9,13 @@ export type RoomRow = {
   status: "lobby" | "playing" | "finished";
   host_id: string | null;
   current_player_id: string | null;
-  state: { deck?: Character[]; pending?: any; rngSeed?: number };
+  state: {
+    deck?: Character[];
+    pending?: any;
+    rngSeed?: number;
+    actionTimeoutSeconds?: number;
+    deadlineAt?: string;
+  };
   winner_id: string | null;
 };
 
@@ -48,49 +54,96 @@ export function useCoupRoom(code: string | undefined) {
     if (!code || !uid) return;
     let mounted = true;
     (async () => {
-      const { data: r } = await supabase.from("rooms").select("*").eq("code", code.toUpperCase()).maybeSingle();
+      const { data: r } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("code", code.toUpperCase())
+        .maybeSingle();
       if (!mounted || !r) return;
       setRoom(r as any);
+      const storedPlayerId = sessionStorage.getItem(`coup:player:${code.toUpperCase()}`);
+      const meQuery = storedPlayerId
+        ? supabase
+            .from("players")
+            .select("*")
+            .eq("room_id", r.id)
+            .eq("id", storedPlayerId)
+            .maybeSingle()
+        : supabase
+            .from("players")
+            .select("*")
+            .eq("room_id", r.id)
+            .eq("anon_user_id", uid)
+            .limit(1)
+            .maybeSingle();
       const [{ data: ps }, { data: es }, { data: me }] = await Promise.all([
         supabase.from("players").select("*").eq("room_id", r.id).order("seat"),
         supabase.from("events").select("*").eq("room_id", r.id).order("seq"),
-        supabase.from("players").select("*").eq("room_id", r.id).eq("anon_user_id", uid).maybeSingle(),
+        meQuery,
       ]);
       setPlayers((ps as any) ?? []);
       setEvents((es as any) ?? []);
       if (me) {
         setMyPlayerId(me.id);
-        const { data: h } = await supabase.from("hands").select("cards").eq("player_id", me.id).maybeSingle();
-        setMyHand(((h?.cards as Character[]) ?? []));
+        const { data: h } = await supabase
+          .from("hands")
+          .select("cards")
+          .eq("player_id", me.id)
+          .maybeSingle();
+        setMyHand((h?.cards as Character[]) ?? []);
       }
 
       const refetchHand = async (pid: string) => {
-        const { data: h } = await supabase.from("hands").select("cards").eq("player_id", pid).maybeSingle();
-        setMyHand(((h?.cards as Character[]) ?? []));
+        const { data: h } = await supabase
+          .from("hands")
+          .select("cards")
+          .eq("player_id", pid)
+          .maybeSingle();
+        setMyHand((h?.cards as Character[]) ?? []);
       };
 
       const ch = supabase
         .channel(`room:${r.id}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `id=eq.${r.id}` }, (payload) => {
-          if (payload.new) setRoom(payload.new as any);
-          if (me) refetchHand(me.id);
-        })
-        .on("postgres_changes", { event: "*", schema: "public", table: "players", filter: `room_id=eq.${r.id}` }, async () => {
-          const { data } = await supabase.from("players").select("*").eq("room_id", r.id).order("seat");
-          setPlayers((data as any) ?? []);
-        })
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "events", filter: `room_id=eq.${r.id}` }, (payload) => {
-          setEvents((prev) => [...prev, payload.new as any]);
-        })
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "rooms", filter: `id=eq.${r.id}` },
+          (payload) => {
+            if (payload.new) setRoom(payload.new as any);
+            if (me) refetchHand(me.id);
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "players", filter: `room_id=eq.${r.id}` },
+          async () => {
+            const { data } = await supabase
+              .from("players")
+              .select("*")
+              .eq("room_id", r.id)
+              .order("seat");
+            setPlayers((data as any) ?? []);
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "events", filter: `room_id=eq.${r.id}` },
+          (payload) => {
+            setEvents((prev) => [...prev, payload.new as any]);
+          },
+        )
         .subscribe();
 
       // subscribe to own hand changes
       const hch = me
         ? supabase
             .channel(`hand:${me.id}`)
-            .on("postgres_changes", { event: "*", schema: "public", table: "hands", filter: `player_id=eq.${me.id}` }, (payload: any) => {
-              if (payload.new?.cards) setMyHand(payload.new.cards);
-            })
+            .on(
+              "postgres_changes",
+              { event: "*", schema: "public", table: "hands", filter: `player_id=eq.${me.id}` },
+              (payload: any) => {
+                if (payload.new?.cards) setMyHand(payload.new.cards);
+              },
+            )
             .subscribe()
         : null;
 
