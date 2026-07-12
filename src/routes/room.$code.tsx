@@ -294,8 +294,8 @@ function RoomPage() {
 
   // ============ GAME ============
   return (
-    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:pb-[18rem] lg:pr-16">
-      <header className="sticky top-0 z-[60] flex items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4">
+    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem] lg:pr-16">
+      <header className="sticky top-0 z-[60] flex shrink-0 items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4 lg:py-2">
         <Link to="/" className="text-xs opacity-60 hover:opacity-100">
           ← Sair
         </Link>
@@ -330,11 +330,11 @@ function RoomPage() {
         />
       )}
 
-      <section className="mx-auto max-w-7xl px-3 sm:px-5">
+      <section className="mx-auto w-full max-w-7xl px-3 sm:px-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <TurnCarousel players={players} currentPlayerId={room.current_player_id} />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
-          <aside aria-labelledby="players-title" className="min-w-0">
+        <div className="mt-6 grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[19rem_minmax(0,1fr)] lg:pb-3">
+          <aside aria-labelledby="players-title" className="min-w-0 lg:flex lg:min-h-0 lg:flex-col">
             <div className="mb-3 flex items-center justify-between">
               <h2 id="players-title" className="font-display text-2xl font-black uppercase">
                 Jogadores
@@ -343,7 +343,7 @@ function RoomPage() {
                 {players.filter((p) => p.is_alive).length} vivos
               </span>
             </div>
-            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 lg:h-[40rem] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3 xl:h-[42rem]">
+            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
               {players.map((p) => (
                 <div key={p.id} className="w-[17.5rem] shrink-0 snap-start lg:w-full">
                   <PlayerSeat
@@ -358,7 +358,7 @@ function RoomPage() {
             </div>
           </aside>
 
-          <div className="relative order-first grid min-h-[14rem] place-items-center overflow-hidden border-[5px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-6 shadow-[10px_10px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-[40rem] lg:w-full lg:p-8 xl:h-[42rem]">
+          <div className="relative order-first grid min-h-[14rem] place-items-center overflow-hidden border-[5px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-6 shadow-[10px_10px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-8">
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
             <div className="relative text-center text-white">
               <span className="pop-kicker">Na mesa!</span>
@@ -463,7 +463,7 @@ function TurnCarousel({
     orderedPlayers.length > 1 ? [...orderedPlayers, orderedPlayers[0]] : orderedPlayers;
 
   return (
-    <section aria-labelledby="turn-order-title" className="mt-5">
+    <section aria-labelledby="turn-order-title" className="game-turn-carousel mt-5 shrink-0">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <span className="pop-kicker -rotate-1 text-xs">Ordem da rodada</span>
