@@ -86,13 +86,16 @@ export const joinRoom = createServerFn({ method: "POST" })
 // ---------- LOAD FULL STATE (server-side only) ----------
 async function loadFullState(roomId: string): Promise<{ room: any; state: FullState }> {
   const supa = await admin();
-  const { data: room } = await supa.from("rooms").select("*").eq("id", roomId).single();
+  const { data: roomRaw } = await supa.from("rooms").select("*").eq("id", roomId).single();
+  const room = roomRaw as any;
+  if (!room) throw new Error("Sala não existe");
   const { data: players } = await supa.from("players").select("*").eq("room_id", roomId).order("seat");
   const { data: hands } = await supa.from("hands").select("*").in("player_id", (players ?? []).map((p: any) => p.id));
   const handMap = new Map<string, Character[]>();
   for (const h of hands ?? []) handMap.set(h.player_id, h.cards as Character[]);
+  const state = (room.state ?? {}) as any;
   const full: FullState = {
-    status: room.status,
+    status: room.status as FullState["status"],
     players: (players ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,
@@ -102,12 +105,13 @@ async function loadFullState(roomId: string): Promise<{ room: any; state: FullSt
       hand: handMap.get(p.id) ?? [],
       revealed: (p.revealed as Character[]) ?? [],
     })),
-    deck: (room.state?.deck as Character[]) ?? [],
+    deck: (state.deck as Character[]) ?? [],
     currentPlayerId: room.current_player_id ?? undefined,
-    pending: room.state?.pending,
+    pending: state.pending ?? undefined,
     winnerId: room.winner_id ?? undefined,
-    rngSeed: room.state?.rngSeed ?? 0,
+    rngSeed: state.rngSeed ?? 0,
   };
+
   return { room, state: full };
 }
 
