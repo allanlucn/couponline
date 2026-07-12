@@ -110,6 +110,7 @@ export const updateRoomTimeout = createServerFn({ method: "POST" })
     const supa = await admin();
     const { data: room } = await supa.from("rooms").select("*").eq("id", data.roomId).single();
     if (!room || room.status !== "lobby") throw new Error("O tempo só pode ser alterado no lobby");
+    if (!room.host_id) throw new Error("A sala ainda não possui um host");
     const { data: host } = await supa
       .from("players")
       .select("anon_user_id")

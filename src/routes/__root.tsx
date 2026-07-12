@@ -10,7 +10,6 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -18,7 +17,10 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-display">404</h1>
         <p className="mt-2 text-sm text-muted-foreground">Esta sala saiu do baralho.</p>
-        <Link to="/" className="btn-primary mt-6 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium">
+        <Link
+          to="/"
+          className="btn-primary mt-6 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium"
+        >
           Voltar ao salão
         </Link>
       </div>
@@ -29,15 +31,20 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    console.error("Root route error", error);
   }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-display">Um selo se partiu.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Algo saiu do combinado. Tente novamente.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Algo saiu do combinado. Tente novamente.
+        </p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="btn-primary mt-6 rounded-md px-4 py-2 text-sm font-medium"
         >
           Tentar de novo
@@ -53,7 +60,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Coup Online — Corte de Blefes" },
-      { name: "description", content: "Jogo online de blefe e traição inspirado em Coup. Crie uma sala e jogue com amigos direto do navegador — sem contas, sem senhas." },
+      {
+        name: "description",
+        content:
+          "Jogo online de blefe e traição inspirado em Coup. Crie uma sala e jogue com amigos direto do navegador — sem contas, sem senhas.",
+      },
       { property: "og:title", content: "Coup Online — Corte de Blefes" },
       { property: "og:description", content: "Blefe, desafie e sobreviva na corte." },
       { property: "og:type", content: "website" },
@@ -79,7 +90,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         {children}
         <Scripts />

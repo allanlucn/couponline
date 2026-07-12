@@ -18,7 +18,9 @@ export function ensureAnon(): Promise<string> {
 export function useAnonSession() {
   const [uid, setUid] = useState<string | null>(null);
   useEffect(() => {
-    ensureAnon().then(setUid).catch(() => setUid(null));
+    ensureAnon()
+      .then(setUid)
+      .catch(() => setUid(null));
   }, []);
   return uid;
 }

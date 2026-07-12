@@ -36,5 +36,13 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: ["src/hooks/useCoupRoom.ts", "src/lib/coup.functions.ts"],
+    rules: {
+      // These adapters deserialize heterogeneous Supabase JSON before the
+      // game engine validates and narrows it to the domain types.
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
   eslintPluginPrettier,
 );

@@ -14,25 +14,45 @@ export const CHARACTER_META: Record<
 };
 
 export type ActionType =
-  | "income"
-  | "foreign_aid"
-  | "coup"
-  | "tax"
-  | "assassinate"
-  | "steal"
-  | "exchange";
+  "income" | "foreign_aid" | "coup" | "tax" | "assassinate" | "steal" | "exchange";
 
 export const ACTION_META: Record<
   ActionType,
-  { name: string; character?: Character; cost?: number; targeted: boolean; challengeable: boolean; blockable: boolean }
+  {
+    name: string;
+    character?: Character;
+    cost?: number;
+    targeted: boolean;
+    challengeable: boolean;
+    blockable: boolean;
+  }
 > = {
   income: { name: "Renda", targeted: false, challengeable: false, blockable: false },
   foreign_aid: { name: "Ajuda Externa", targeted: false, challengeable: false, blockable: true },
   coup: { name: "Golpe", cost: 7, targeted: true, challengeable: false, blockable: false },
   tax: { name: "Taxar", character: "duke", targeted: false, challengeable: true, blockable: false },
-  assassinate: { name: "Assassinar", character: "assassin", cost: 3, targeted: true, challengeable: true, blockable: true },
-  steal: { name: "Extorquir", character: "captain", targeted: true, challengeable: true, blockable: true },
-  exchange: { name: "Trocar", character: "ambassador", targeted: false, challengeable: true, blockable: false },
+  assassinate: {
+    name: "Assassinar",
+    character: "assassin",
+    cost: 3,
+    targeted: true,
+    challengeable: true,
+    blockable: true,
+  },
+  steal: {
+    name: "Extorquir",
+    character: "captain",
+    targeted: true,
+    challengeable: true,
+    blockable: true,
+  },
+  exchange: {
+    name: "Trocar",
+    character: "ambassador",
+    targeted: false,
+    challengeable: true,
+    blockable: false,
+  },
 };
 
 export type CardSlot = { character: Character; revealed: boolean };
@@ -52,7 +72,13 @@ export type PendingAction = {
   actorId: string;
   targetId?: string;
   // resolution phase: waiting on challenges/blocks
-  phase: "challenge_action" | "block_window" | "challenge_block" | "resolving" | "exchange_pick" | "lose_influence";
+  phase:
+    | "challenge_action"
+    | "block_window"
+    | "challenge_block"
+    | "resolving"
+    | "exchange_pick"
+    | "lose_influence";
   // who has passed on the current challenge/block window
   passed: string[];
   // block declared

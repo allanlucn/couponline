@@ -15,6 +15,10 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.lovable/
+.agents/
+.codex/
+supabase/.temp/
 
 # Environment files (may contain secrets)
 .env
