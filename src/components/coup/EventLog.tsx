@@ -27,12 +27,12 @@ export function EventLog({ events, nameFor }: { events: EventRow[]; nameFor: (id
   }, [events]);
   return (
     <aside
-      className={`fixed right-0 top-0 h-full z-30 transition-transform ${open ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]"}`}
+      className={`fixed right-0 top-0 h-full z-30 transition-transform ${open ? "translate-x-0 pointer-events-auto" : "translate-x-full pointer-events-none"}`}
       style={{ width: "min(320px, 90vw)" }}
     >
       <button
         onClick={() => setOpen(!open)}
-        className="absolute left-0 top-4 -translate-x-full btn-ghost rounded-l-md px-2 py-3 text-xs writing-mode-vertical"
+        className="absolute left-0 top-4 -translate-x-full btn-ghost rounded-l-md px-2 py-3 text-xs pointer-events-auto"
         style={{ writingMode: "vertical-rl" }}
         aria-label="alternar log"
       >
