@@ -171,8 +171,9 @@ export const startGameFn = createServerFn({ method: "POST" })
     const supa = await admin();
     const { data: room } = await supa.from("rooms").select("*").eq("id", data.roomId).single();
     if (!room) throw new Error("Sala não existe");
+    if (!room.host_id) throw new Error("Sala sem host");
     const { data: hostPlayer } = await supa.from("players").select("*").eq("id", room.host_id).single();
-    if (hostPlayer.anon_user_id !== context.userId) throw new Error("Apenas o host inicia");
+    if (!hostPlayer || hostPlayer.anon_user_id !== context.userId) throw new Error("Apenas o host inicia");
     if (room.status !== "lobby") throw new Error("Já iniciou");
     const { data: players } = await supa.from("players").select("*").eq("room_id", data.roomId).order("seat");
     if (!players || players.length < 2) throw new Error("Mínimo 2 jogadores");
