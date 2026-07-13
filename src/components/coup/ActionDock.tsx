@@ -27,7 +27,7 @@ const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean
 const panelClass =
   "border-[3px] border-[var(--pop-ink,#101114)] bg-[var(--pop-panel,#fff5dc)] text-[var(--pop-ink,#101114)] shadow-[6px_6px_0_var(--pop-ink,#101114)]";
 const buttonBase =
-  "min-h-14 border-[3px] border-[var(--pop-ink,#101114)] px-4 py-3 text-left text-base font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-y-0";
+  "min-h-12 border-[3px] border-[var(--pop-ink,#101114)] px-3 py-2 text-left text-sm font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-y-0";
 
 export function ActionDock({
   players,
@@ -59,7 +59,7 @@ export function ActionDock({
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
       <section
         aria-label="Ações do turno"
-        className={`pointer-events-auto mx-auto max-w-7xl p-3 sm:p-4 ${panelClass}`}
+        className={`pointer-events-auto mx-auto max-w-7xl p-2 sm:p-3 ${panelClass}`}
       >
         <PlayerHand cards={myHand} />
         {!isMyTurn ? (
@@ -97,7 +97,7 @@ export function ActionDock({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             {ACTIONS.map((a) => {
               const meta = ACTION_META[a.type];
               const disabled =
@@ -111,7 +111,7 @@ export function ActionDock({
                   title={a.hint}
                   aria-label={`${a.label}: ${a.hint}`}
                 >
-                  <span className="block font-display text-base uppercase sm:text-lg">
+                  <span className="block font-display text-sm uppercase sm:text-base">
                     {a.label}
                   </span>
                   <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
@@ -141,11 +141,11 @@ function PlayerHand({
 }) {
   if (cards.length === 0) return null;
   return (
-    <div className="mb-3 border-b-[3px] border-[var(--pop-ink)] pb-3">
-      <div className="mb-1 text-center font-display text-sm font-black uppercase sm:text-base">
+    <div className="mb-2 border-b-[3px] border-[var(--pop-ink)] pb-2">
+      <div className="text-center font-display text-xs font-black uppercase sm:text-sm">
         Sua mão
       </div>
-      <div className="flex items-end justify-center gap-3 sm:gap-5" aria-label="Suas influências">
+      <div className="flex items-end justify-center gap-3 sm:gap-4" aria-label="Suas influências">
         {cards.map((character, index) => {
           const card = <InfluenceCard character={character} size="md" />;
           return onSelect ? (

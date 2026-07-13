@@ -26,9 +26,9 @@ const CARD_IMAGES: Record<Character, string> = {
 };
 
 const SIZES = {
-  sm: "w-14",
-  md: "w-24 sm:w-28",
-  lg: "w-32 sm:w-40 lg:w-44",
+  sm: "w-12 sm:w-14",
+  md: "w-20 sm:w-24",
+  lg: "w-28 sm:w-36 lg:w-40",
 };
 
 export function InfluenceCard({

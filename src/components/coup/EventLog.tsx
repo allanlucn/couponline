@@ -49,12 +49,12 @@ export function EventLog({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed right-3 top-24 z-30 flex min-h-14 min-w-36 items-center justify-center gap-2 border-[4px] border-[var(--pop-ink,#101114)] bg-[var(--pop-warning,#f4b900)] px-5 py-3 font-display text-base font-black uppercase tracking-wide text-[var(--pop-ink,#101114)] shadow-[6px_6px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none sm:right-5 sm:min-h-16 sm:min-w-44 sm:text-lg"
+        className="fixed right-3 top-20 z-30 flex min-h-11 items-center justify-center gap-2 border-[3px] border-[var(--pop-ink,#101114)] bg-[var(--pop-warning,#f4b900)] px-3 py-2 font-display text-sm font-black uppercase tracking-wide text-[var(--pop-ink,#101114)] shadow-[4px_4px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none sm:right-4 sm:min-w-32 sm:text-base"
         aria-label="Abrir histórico da partida"
         aria-expanded={open}
         aria-controls="action-history"
       >
-        <span aria-hidden="true" className="text-xl">
+        <span aria-hidden="true" className="text-lg">
           ☰
         </span>
         Histórico

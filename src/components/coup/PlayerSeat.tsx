@@ -30,7 +30,7 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props)
   return (
     <section
       aria-label={`${player.name}${isMe ? ", você" : ""}${seatState ? ` — ${seatState}` : ""}`}
-      className={`relative flex min-w-0 flex-col items-center gap-2 rounded-lg border-2 p-3 text-[var(--pop-ink,#101114)] shadow-[4px_4px_0_var(--pop-ink,#101114)] transition-[transform,filter] motion-reduce:transition-none ${
+      className={`relative flex min-w-0 flex-col items-center gap-1.5 rounded-lg border-2 p-2.5 text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-[transform,filter] motion-reduce:transition-none ${
         isCurrent
           ? "-translate-y-1 border-[var(--pop-warning,#f4b900)] bg-[var(--pop-panel,#fff5dc)] ring-2 ring-[var(--pop-ink,#101114)]"
           : "border-[var(--pop-ink,#101114)] bg-[var(--pop-paper,#f5f0e5)]"
@@ -47,7 +47,7 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props)
       <div className="flex w-full items-center gap-2">
         <div
           aria-hidden="true"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-[var(--pop-ink,#101114)] font-display text-sm font-black text-white shadow-[2px_2px_0_var(--pop-ink,#101114)]"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-[var(--pop-ink,#101114)] font-display text-xs font-black text-white shadow-[2px_2px_0_var(--pop-ink,#101114)] sm:h-10 sm:w-10"
           style={{ backgroundColor: `hsl(${seatHue} 58% 38%)` }}
         >
           {initials}
@@ -76,7 +76,7 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props)
       </div>
 
       <div
-        className="flex min-h-14 max-w-full flex-wrap justify-center gap-1.5"
+        className="flex min-h-12 max-w-full flex-wrap justify-center gap-1.5"
         aria-label="Influências"
       >
         {!isMe &&

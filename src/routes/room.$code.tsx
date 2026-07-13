@@ -294,7 +294,7 @@ function RoomPage() {
 
   // ============ GAME ============
   return (
-    <main className="pop-shell min-h-screen pb-[30rem] sm:pb-[26rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem]">
+    <main className="pop-shell min-h-screen pb-[26rem] sm:pb-[22rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[15rem]">
       <header className="sticky top-0 z-[60] flex shrink-0 items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4 lg:py-2">
         <Link to="/" className="text-xs opacity-60 hover:opacity-100">
           ← Sair
@@ -330,22 +330,22 @@ function RoomPage() {
         />
       )}
 
-      <section className="mx-auto w-full max-w-7xl px-3 sm:px-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+      <section className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <TurnCarousel players={players} currentPlayerId={room.current_player_id} />
 
-        <div className="mt-6 grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[19rem_minmax(0,1fr)] lg:pb-3">
+        <div className="mt-4 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[17rem_minmax(0,1fr)] lg:pb-3">
           <aside aria-labelledby="players-title" className="min-w-0 lg:flex lg:min-h-0 lg:flex-col">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 id="players-title" className="font-display text-2xl font-black uppercase">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 id="players-title" className="font-display text-xl font-black uppercase">
                 Jogadores
               </h2>
               <span className="pop-badge pop-badge--blue">
                 {players.filter((p) => p.is_alive).length} vivos
               </span>
             </div>
-            <div className="flex snap-x gap-4 overflow-x-auto px-1 pb-3 pt-4 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
+            <div className="flex snap-x gap-3 overflow-x-auto px-1 pb-3 pt-4 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
               {players.map((p) => (
-                <div key={p.id} className="w-[17.5rem] shrink-0 snap-start lg:w-full">
+                <div key={p.id} className="w-64 shrink-0 snap-start lg:w-full">
                   <PlayerSeat
                     player={p}
                     isCurrent={room.current_player_id === p.id}
@@ -358,16 +358,18 @@ function RoomPage() {
             </div>
           </aside>
 
-          <div className="relative order-first grid min-h-[14rem] place-items-center overflow-hidden border-[5px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-6 shadow-[10px_10px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-8">
+          <div className="relative order-first grid min-h-48 place-items-center overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-4 shadow-[7px_7px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-6">
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
             <div className="relative text-center text-white">
               <span className="pop-kicker">Na mesa!</span>
-              <div className="mt-6 font-display text-5xl font-black uppercase [text-shadow:4px_4px_0_var(--pop-ink)]">
+              <div className="mt-4 font-display text-3xl font-black uppercase [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-4xl lg:text-5xl">
                 {nameFor(room.current_player_id ?? "")}
               </div>
-              <p className="mt-3 text-lg font-black uppercase">está decidindo a próxima jogada</p>
+              <p className="mt-2 text-sm font-black uppercase sm:text-base">
+                está decidindo a próxima jogada
+              </p>
               <div
-                className={`mx-auto mt-5 inline-flex min-w-28 items-center justify-center border-[4px] border-[var(--pop-ink)] px-5 py-3 font-display text-3xl font-black shadow-[5px_5px_0_var(--pop-ink)] ${
+                className={`mx-auto mt-4 inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] px-4 py-2 font-display text-2xl font-black shadow-[4px_4px_0_var(--pop-ink)] ${
                   secondsLeft <= 5
                     ? "bg-[var(--pop-danger)] text-white"
                     : "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
@@ -463,22 +465,22 @@ function TurnCarousel({
     orderedPlayers.length > 1 ? [...orderedPlayers, orderedPlayers[0]] : orderedPlayers;
 
   return (
-    <section aria-labelledby="turn-order-title" className="game-turn-carousel mt-5 shrink-0">
-      <div className="mb-3 flex items-end justify-between gap-3">
+    <section aria-labelledby="turn-order-title" className="game-turn-carousel mt-3 shrink-0">
+      <div className="mb-2 flex items-end justify-between gap-3">
         <div>
           <span className="pop-kicker -rotate-1 text-xs">Ordem da rodada</span>
           <h2
             id="turn-order-title"
-            className="mt-3 font-display text-3xl font-black uppercase sm:text-4xl"
+            className="mt-2 font-display text-2xl font-black uppercase sm:text-3xl"
           >
             Quem joga agora?
           </h2>
         </div>
-        <span className="hidden font-display text-lg font-black uppercase sm:block">Deslize →</span>
+        <span className="hidden font-display text-sm font-black uppercase sm:block">Deslize →</span>
       </div>
 
-      <div className="overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-panel)] p-3 shadow-[7px_7px_0_var(--pop-ink)]">
-        <div className="flex snap-x items-stretch gap-3 overflow-x-auto px-1 pb-2 pt-3">
+      <div className="overflow-hidden border-[3px] border-[var(--pop-ink)] bg-[var(--pop-panel)] p-2 shadow-[5px_5px_0_var(--pop-ink)]">
+        <div className="flex snap-x items-stretch gap-2 overflow-x-auto px-1 pb-2 pt-2">
           {carouselPlayers.map((player, index) => {
             const isCurrent = player.id === currentPlayerId;
             const restartsCycle =
@@ -495,7 +497,7 @@ function TurnCarousel({
             return (
               <div
                 key={`${player.id}-${index}`}
-                className={`relative flex min-h-24 w-48 shrink-0 snap-center items-center gap-3 border-[3px] border-[var(--pop-ink)] px-4 py-3 shadow-[4px_4px_0_var(--pop-ink)] transition-transform lg:min-w-48 lg:flex-1 ${
+                className={`relative flex min-h-20 w-44 shrink-0 snap-center items-center gap-2 border-[3px] border-[var(--pop-ink)] px-3 py-2 shadow-[3px_3px_0_var(--pop-ink)] transition-transform lg:min-w-44 lg:flex-1 ${
                   isCurrent
                     ? "-translate-y-2 bg-[var(--pop-warning)] ring-4 ring-[var(--pop-danger)] ring-offset-2"
                     : index === 0
@@ -507,7 +509,7 @@ function TurnCarousel({
               >
                 <div
                   aria-hidden="true"
-                  className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-[3px] border-[var(--pop-ink)] bg-[var(--pop-info)] font-display text-lg font-black text-white"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-[3px] border-[var(--pop-ink)] bg-[var(--pop-info)] font-display text-sm font-black text-white"
                 >
                   {player.name.slice(0, 2).toUpperCase()}
                 </div>
@@ -517,7 +519,7 @@ function TurnCarousel({
                   >
                     {label}
                   </span>
-                  <div className="truncate font-display text-lg font-black uppercase">
+                  <div className="truncate font-display text-base font-black uppercase">
                     {player.name}
                   </div>
                 </div>
