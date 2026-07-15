@@ -129,6 +129,9 @@ export function ActionDock({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             {ACTIONS.map((a) => {
               const meta = ACTION_META[a.type];
+              const hasClaimedInfluence = Boolean(
+                !concealed && meta.character && myHand.includes(meta.character),
+              );
               const disabled =
                 !isMyTurn ||
                 handOnly ||
@@ -137,36 +140,61 @@ export function ActionDock({
                 (meta.cost && myCoins < meta.cost) ||
                 false;
               return (
-                <button
+                <div
                   key={a.type}
-                  disabled={!!disabled}
-                  onClick={() => (meta.targeted ? setPicking(a.type) : doAction(a.type))}
-                  className={`${buttonBase} ${a.danger ? "action-button--sliced bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"} ${submittingAction === a.type ? submittingButtonClass : ""}`}
-                  title={a.hint}
-                  aria-label={`${a.label}: ${a.hint}`}
-                  aria-busy={submittingAction === a.type}
+                  className={`relative min-w-0 ${hasClaimedInfluence ? "action-button-owned-frame" : ""}`}
+                  data-disabled={disabled || undefined}
                 >
-                  {a.danger ? (
-                    <span
-                      className="action-button__sliced-label block font-display text-sm uppercase sm:text-base"
-                      aria-hidden="true"
-                    >
-                      <span className="action-button__slice action-button__slice--top">
-                        {a.label}
-                      </span>
-                      <span className="action-button__slice action-button__slice--bottom">
-                        {a.label}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="block font-display text-sm uppercase sm:text-base">
-                      {a.label}
-                    </span>
+                  {hasClaimedInfluence && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="action-button-owned-edge action-button-owned-edge--top"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="action-button-owned-edge action-button-owned-edge--right"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="action-button-owned-edge action-button-owned-edge--bottom"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="action-button-owned-edge action-button-owned-edge--left"
+                      />
+                    </>
                   )}
-                  <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
-                    {a.hint}
-                  </span>
-                </button>
+                  <button
+                    disabled={!!disabled}
+                    onClick={() => (meta.targeted ? setPicking(a.type) : doAction(a.type))}
+                    className={`${buttonBase} h-full w-full ${a.danger ? "action-button--sliced bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"} ${submittingAction === a.type ? submittingButtonClass : ""}`}
+                    title={a.hint}
+                    aria-label={`${a.label}: ${a.hint}${hasClaimedInfluence ? ". Você possui esta influência" : ""}`}
+                    aria-busy={submittingAction === a.type}
+                  >
+                    {a.danger ? (
+                      <span
+                        className="action-button__sliced-label block font-display text-sm uppercase sm:text-base"
+                        aria-hidden="true"
+                      >
+                        <span className="action-button__slice action-button__slice--top">
+                          {a.label}
+                        </span>
+                        <span className="action-button__slice action-button__slice--bottom">
+                          {a.label}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="block font-display text-sm uppercase sm:text-base">
+                        {a.label}
+                      </span>
+                    )}
+                    <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
+                      {a.hint}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>

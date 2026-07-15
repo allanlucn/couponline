@@ -564,6 +564,102 @@
   isolation: isolate;
 }
 
+.action-button-owned-frame {
+  overflow: hidden;
+}
+
+.action-button-owned-edge {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+}
+
+.action-button-owned-edge--top,
+.action-button-owned-edge--bottom {
+  left: 0;
+  width: 100%;
+  height: 6px;
+}
+
+.action-button-owned-edge--right,
+.action-button-owned-edge--left {
+  top: 0;
+  width: 6px;
+  height: 100%;
+}
+
+.action-button-owned-edge--top {
+  top: 0;
+  background: linear-gradient(to left, transparent, var(--pop-info));
+  animation: owned-action-edge-top 1.8s linear infinite;
+}
+
+.action-button-owned-edge--right {
+  right: 0;
+  background: linear-gradient(to top, transparent, var(--pop-info));
+  animation: owned-action-edge-right 1.8s linear -0.9s infinite;
+}
+
+.action-button-owned-edge--bottom {
+  bottom: 0;
+  background: linear-gradient(to right, transparent, var(--pop-info));
+  animation: owned-action-edge-bottom 1.8s linear infinite;
+}
+
+.action-button-owned-edge--left {
+  left: 0;
+  background: linear-gradient(to bottom, transparent, var(--pop-info));
+  animation: owned-action-edge-left 1.8s linear -0.9s infinite;
+}
+
+.action-button-owned-frame[data-disabled="true"] .action-button-owned-edge {
+  opacity: 0.45;
+  animation-play-state: paused;
+}
+
+.action-button-owned-frame > button {
+  position: relative;
+  z-index: 1;
+  box-shadow: none !important;
+}
+
+@keyframes owned-action-edge-top {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes owned-action-edge-right {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes owned-action-edge-bottom {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes owned-action-edge-left {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
 .action-button--sliced::after {
   content: "";
   position: absolute;
@@ -613,6 +709,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .action-button-owned-edge {
+    animation: none;
+    background: var(--pop-info);
+  }
+
   .action-button--sliced::after,
   .action-button__slice {
     transition: none;
