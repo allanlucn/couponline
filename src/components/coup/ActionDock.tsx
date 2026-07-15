@@ -27,7 +27,8 @@ const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean
 const panelClass =
   "border-[3px] border-[var(--pop-ink,#101114)] bg-[var(--pop-panel,#fff5dc)] text-[var(--pop-ink,#101114)] shadow-[6px_6px_0_var(--pop-ink,#101114)]";
 const buttonBase =
-  "min-h-12 border-[3px] border-[var(--pop-ink,#101114)] px-3 py-2 text-left text-sm font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-y-0";
+  "min-h-12 border-[3px] border-[var(--pop-ink,#101114)] px-3 py-2 text-left text-sm font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-[transform,box-shadow,filter] duration-100 ease-out hover:-translate-x-0.5 hover:-translate-y-1 hover:shadow-[5px_5px_0_var(--pop-ink,#101114)] active:translate-x-0.5 active:translate-y-0.5 active:scale-[0.96] active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:scale-100";
+const submittingButtonClass = "anim-button-pop cursor-wait disabled:opacity-75";
 
 export function ActionDock({
   players,
@@ -39,14 +40,21 @@ export function ActionDock({
   onAction,
 }: Props) {
   const [picking, setPicking] = useState<ActionType | null>(null);
+  const [submittingAction, setSubmittingAction] = useState<ActionType | null>(null);
   const me = players.find((p) => p.id === myPlayerId);
   if (!me) return null;
   const isMyTurn = currentPlayerId === myPlayerId && !pending;
   const mustCoup = myCoins >= 10;
 
   async function doAction(type: ActionType, targetId?: string) {
+    if (submittingAction) return;
+    setSubmittingAction(type);
     setPicking(null);
-    await onAction({ kind: "action", type, actorId: myPlayerId, targetId });
+    try {
+      await onAction({ kind: "action", type, actorId: myPlayerId, targetId });
+    } finally {
+      setSubmittingAction(null);
+    }
   }
 
   if (pending && me.is_alive) {
@@ -82,10 +90,12 @@ export function ActionDock({
                 .map((p) => (
                   <button
                     key={p.id}
+                    disabled={submittingAction !== null}
                     onClick={() => doAction(picking, p.id)}
-                    className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white`}
+                    className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white ${submittingAction === picking ? submittingButtonClass : ""}`}
+                    aria-busy={submittingAction === picking}
                   >
-                    {p.name}
+                    {submittingAction === picking ? "Registrandoâ€¦" : p.name}
                   </button>
                 ))}
               <button
@@ -101,21 +111,25 @@ export function ActionDock({
             {ACTIONS.map((a) => {
               const meta = ACTION_META[a.type];
               const disabled =
-                (mustCoup && a.type !== "coup") || (meta.cost && myCoins < meta.cost) || false;
+                submittingAction !== null ||
+                (mustCoup && a.type !== "coup") ||
+                (meta.cost && myCoins < meta.cost) ||
+                false;
               return (
                 <button
                   key={a.type}
                   disabled={!!disabled}
                   onClick={() => (meta.targeted ? setPicking(a.type) : doAction(a.type))}
-                  className={`${buttonBase} ${a.danger ? "bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"}`}
+                  className={`${buttonBase} ${a.danger ? "bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"} ${submittingAction === a.type ? submittingButtonClass : ""}`}
                   title={a.hint}
                   aria-label={`${a.label}: ${a.hint}`}
+                  aria-busy={submittingAction === a.type}
                 >
                   <span className="block font-display text-sm uppercase sm:text-base">
-                    {a.label}
+                    {submittingAction === a.type ? "Registrandoâ€¦" : a.label}
                   </span>
                   <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
-                    {a.hint}
+                    {submittingAction === a.type ? "Enviando ao servidor" : a.hint}
                   </span>
                 </button>
               );
@@ -182,6 +196,7 @@ function PendingUI({
   myHand: Character[];
   onAction: (a: unknown) => Promise<void>;
 }) {
+  const [submittingReaction, setSubmittingReaction] = useState<string | null>(null);
   const actor = players.find((p) => p.id === pending.actorId);
   const meta = ACTION_META[pending.type];
   const target = pending.targetId ? players.find((p) => p.id === pending.targetId) : null;
@@ -224,6 +239,16 @@ function PendingUI({
   const claimingChar =
     pending.phase === "challenge_block" ? pending.block!.character : meta.character;
 
+  async function submitReaction(key: string, action: unknown) {
+    if (submittingReaction) return;
+    setSubmittingReaction(key);
+    try {
+      await onAction(action);
+    } finally {
+      setSubmittingReaction(null);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-[var(--pop-ink)]/20 px-4 pb-24 sm:pb-28">
       <section
@@ -253,27 +278,49 @@ function PendingUI({
         {canReact && isChallengePhase && (
           <div className="flex flex-wrap justify-center gap-4">
             <button
-              onClick={() => onAction({ kind: "challenge", challengerId: me.id })}
-              className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white`}
+              disabled={submittingReaction !== null}
+              onClick={() =>
+                submitReaction("challenge", { kind: "challenge", challengerId: me.id })
+              }
+              className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white ${submittingReaction === "challenge" ? submittingButtonClass : ""}`}
+              aria-busy={submittingReaction === "challenge"}
             >
-              Desafiar {claimingChar ? `(${CHARACTER_META[claimingChar].name})` : ""}
+              {submittingReaction === "challenge"
+                ? "Registrandoâ€¦"
+                : `Desafiar ${claimingChar ? `(${CHARACTER_META[claimingChar].name})` : ""}`}
             </button>
             <button
-              onClick={() => onAction({ kind: "pass", playerId: me.id })}
-              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)]`}
+              disabled={submittingReaction !== null}
+              onClick={() => submitReaction("pass", { kind: "pass", playerId: me.id })}
+              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)] ${submittingReaction === "pass" ? submittingButtonClass : ""}`}
+              aria-busy={submittingReaction === "pass"}
             >
-              Passar
+              {submittingReaction === "pass" ? "Registrandoâ€¦" : "Passar"}
             </button>
           </div>
         )}
         {canReact && isBlockPhase && (
           <div className="flex flex-wrap justify-center gap-4">
-            <BlockButtons pending={pending} me={me} myHand={myHand} onAction={onAction} />
+            <BlockButtons
+              pending={pending}
+              me={me}
+              myHand={myHand}
+              submitting={submittingReaction}
+              onSubmit={(character) =>
+                submitReaction(`block-${character}`, {
+                  kind: "block",
+                  blockerId: me.id,
+                  character,
+                })
+              }
+            />
             <button
-              onClick={() => onAction({ kind: "pass", playerId: me.id })}
-              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)]`}
+              disabled={submittingReaction !== null}
+              onClick={() => submitReaction("pass", { kind: "pass", playerId: me.id })}
+              className={`${buttonBase} bg-[var(--pop-white,#fffdf7)] ${submittingReaction === "pass" ? submittingButtonClass : ""}`}
+              aria-busy={submittingReaction === "pass"}
             >
-              Passar
+              {submittingReaction === "pass" ? "Registrandoâ€¦" : "Passar"}
             </button>
           </div>
         )}
@@ -293,12 +340,14 @@ function BlockButtons({
   pending,
   me,
   myHand,
-  onAction,
+  submitting,
+  onSubmit,
 }: {
   pending: PendingAction;
   me: PlayerRow;
   myHand: Character[];
-  onAction: (a: unknown) => Promise<void>;
+  submitting: string | null;
+  onSubmit: (character: Character) => void;
 }) {
   const [choosingCharacter, setChoosingCharacter] = useState(false);
   const options: Character[] = [];
@@ -308,9 +357,25 @@ function BlockButtons({
     options.push("captain", "ambassador");
   if (options.length === 0) return null;
 
+  if (options.length === 1) {
+    const character = options[0];
+    const isSubmitting = submitting === `block-${character}`;
+    return (
+      <button
+        disabled={submitting !== null}
+        onClick={() => onSubmit(character)}
+        className={`${buttonBase} bg-[var(--pop-info,#087985)] text-white ${isSubmitting ? submittingButtonClass : ""}`}
+        aria-busy={isSubmitting}
+      >
+        {isSubmitting ? "Registrandoâ€¦" : `Bloquear como ${CHARACTER_META[character].name}`}
+      </button>
+    );
+  }
+
   if (!choosingCharacter) {
     return (
       <button
+        disabled={submitting !== null}
         onClick={() => setChoosingCharacter(true)}
         className={`${buttonBase} bg-[var(--pop-info,#087985)] text-white`}
       >
@@ -334,8 +399,10 @@ function BlockButtons({
           return (
             <button
               key={c}
-              onClick={() => onAction({ kind: "block", blockerId: me.id, character: c })}
-              className={`relative flex min-w-36 flex-col items-center gap-2 border-[4px] border-[var(--pop-ink)] p-3 font-black shadow-[5px_5px_0_var(--pop-ink)] transition-transform hover:-translate-y-1 ${
+              disabled={submitting !== null}
+              onClick={() => onSubmit(c)}
+              aria-busy={submitting === `block-${c}`}
+              className={`relative flex min-w-36 flex-col items-center gap-2 border-[4px] border-[var(--pop-ink)] p-3 font-black shadow-[5px_5px_0_var(--pop-ink)] transition-transform hover:-translate-y-1 ${submitting === `block-${c}` ? submittingButtonClass : ""} ${
                 isInHand
                   ? "-translate-y-2 bg-[var(--pop-warning)] text-[var(--pop-ink)] ring-4 ring-[var(--pop-danger)] ring-offset-2"
                   : "bg-[var(--pop-white)] text-[var(--pop-ink)]"
@@ -349,7 +416,11 @@ function BlockButtons({
               <InfluenceCard character={c} size="md" />
               <span className="font-display text-lg uppercase">{CHARACTER_META[c].name}</span>
               <span className="text-xs uppercase opacity-70">
-                {isInHand ? "Bloqueio real" : "Blefe"}
+                {submitting === `block-${c}`
+                  ? "Registrandoâ€¦"
+                  : isInHand
+                    ? "Bloqueio real"
+                    : "Blefe"}
               </span>
             </button>
           );

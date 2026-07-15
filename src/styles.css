@@ -521,6 +521,17 @@
     box-shadow: 0 0 0 12px rgb(244 185 0 / 0);
   }
 }
+@keyframes button-pop {
+  0% {
+    transform: scale(0.96);
+  }
+  55% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 
 .anim-fade-up {
   animation: fade-up 0.35s ease-out;
@@ -533,6 +544,9 @@
 }
 .anim-glow {
   animation: glow 2s ease-in-out infinite;
+}
+.anim-button-pop {
+  animation: button-pop 180ms ease-out;
 }
 
 @media (max-width: 479px) {
@@ -601,7 +615,8 @@
   .anim-fade-up,
   .anim-seal-crack,
   .anim-shake,
-  .anim-glow {
+  .anim-glow,
+  .anim-button-pop {
     animation: none !important;
   }
 }
