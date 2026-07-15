@@ -364,7 +364,7 @@ function RoomPage() {
       <section className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <TurnCarousel players={players} currentPlayerId={room.current_player_id} />
 
-        <div className="mt-4 grid gap-4 lg:h-[min(60dvh,calc(100dvh-21rem))] lg:min-h-0 lg:flex-none lg:grid-cols-[17rem_minmax(0,1fr)] lg:pb-3">
+        <div className="mt-4 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[17rem_minmax(0,1fr)] lg:pb-3">
           <aside aria-labelledby="players-title" className="min-w-0 lg:flex lg:min-h-0 lg:flex-col">
             <div className="mb-2 flex items-center justify-between">
               <h2 id="players-title" className="font-display text-xl font-black uppercase">

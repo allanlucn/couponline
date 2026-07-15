@@ -615,7 +615,6 @@
 
 .action-button-owned-frame[data-disabled="true"] .action-button-owned-edge {
   opacity: 0.45;
-  animation-play-state: paused;
 }
 
 .action-button-owned-frame > button {
@@ -660,18 +659,17 @@
   }
 }
 
-.action-button--sliced::after {
+.action-button__sliced-label::after {
   content: "";
   position: absolute;
   z-index: 2;
-  top: 1.15rem;
-  left: -125%;
-  width: 115%;
-  height: 3px;
+  inset: 0 -0.75rem;
   background: var(--pop-warning);
-  box-shadow: 0 1px 0 var(--pop-ink);
-  transform: skewX(-28deg) rotate(-2deg);
-  transition: left 520ms cubic-bezier(0.89, -0.17, 0.14, 1.225);
+  clip-path: polygon(0 58%, 100% 38%, 100% 54%, 0 74%);
+  filter: drop-shadow(0 1px 0 var(--pop-ink));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 420ms cubic-bezier(0.89, -0.17, 0.14, 1.225);
   pointer-events: none;
 }
 
@@ -696,8 +694,9 @@
   clip-path: polygon(0 64%, 100% 48%, 100% 100%, 0 100%);
 }
 
-.action-button--sliced:is(:hover, :focus-visible):not(:disabled)::after {
-  left: 115%;
+.action-button--sliced:is(:hover, :focus-visible):not(:disabled)
+  .action-button__sliced-label::after {
+  transform: scaleX(1);
 }
 
 .action-button--sliced:is(:hover, :focus-visible):not(:disabled) .action-button__slice--top {
@@ -714,7 +713,7 @@
     background: var(--pop-info);
   }
 
-  .action-button--sliced::after,
+  .action-button__sliced-label::after,
   .action-button__slice {
     transition: none;
   }
