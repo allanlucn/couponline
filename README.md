@@ -1,6 +1,6 @@
 <div align="center">
 
-# [Coup Online](oncoup.vercel.app)
+# [Coup Online](https://oncoup.vercel.app/)
 
 **Blefe, desafie e domine a mesa em partidas multiplayer direto do navegador.**
 
