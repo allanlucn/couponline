@@ -66,10 +66,10 @@ function Landing() {
   }
 
   return (
-    <main className="pop-shell min-h-screen overflow-hidden px-4 py-8 sm:py-12">
+    <main className="pop-shell flex min-h-screen flex-col overflow-hidden px-4 py-8 sm:py-12">
       <div className="pointer-events-none absolute -left-16 top-16 h-40 w-40 rounded-full bg-[var(--pop-warning)] pop-halftone" />
       <div className="pointer-events-none absolute -right-20 bottom-8 h-56 w-56 rotate-12 bg-[var(--pop-danger)] pop-halftone [clip-path:polygon(50%_0,61%_34%,98%_20%,70%_50%,100%_72%,62%_67%,50%_100%,38%_67%,0_72%,30%_50%,2%_20%,39%_34%)]" />
-      <div className="relative mx-auto grid min-h-[calc(100vh-6rem)] w-full max-w-5xl items-center gap-8 lg:grid-cols-[1.05fr_.95fr]">
+      <div className="relative mx-auto grid w-full max-w-5xl flex-1 items-center gap-8 lg:grid-cols-[1.05fr_.95fr]">
         <section className="text-center lg:text-left">
           <span className="pop-kicker inline-block -rotate-2">Blefe • Desafie • Domine</span>
           <h1 className="mt-5 font-display text-6xl font-black uppercase leading-[.82] sm:text-7xl lg:text-8xl">
@@ -221,6 +221,18 @@ function Landing() {
           )}
         </section>
       </div>
+
+      <footer className="relative mx-auto mt-8 w-full max-w-5xl text-center text-sm font-bold uppercase tracking-wide sm:mt-10">
+        <span className="opacity-60">Feito por </span>
+        <a
+          href="https://github.com/allanlucn"
+          target="_blank"
+          rel="noreferrer"
+          className="font-display text-[var(--pop-info)] underline decoration-2 underline-offset-4 transition-colors hover:text-[var(--pop-danger)] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--pop-focus,#3478f6)]"
+        >
+          Allan Lucena
+        </a>
+      </footer>
     </main>
   );
 }
