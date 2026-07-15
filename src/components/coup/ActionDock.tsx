@@ -14,6 +14,7 @@ type Props = {
   onAction: (act: unknown) => Promise<void>;
   embedded?: boolean;
   handOnly?: boolean;
+  concealed?: boolean;
 };
 
 const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean }[] = [
@@ -42,12 +43,13 @@ export function ActionDock({
   onAction,
   embedded = false,
   handOnly = false,
+  concealed = false,
 }: Props) {
   const [picking, setPicking] = useState<ActionType | null>(null);
   const [submittingAction, setSubmittingAction] = useState<ActionType | null>(null);
   const me = players.find((p) => p.id === myPlayerId);
   if (!me) return null;
-  const isMyTurn = currentPlayerId === myPlayerId && !pending;
+  const isMyTurn = currentPlayerId === myPlayerId && !pending && !concealed;
   const mustCoup = myCoins >= 10;
 
   async function doAction(type: ActionType, targetId?: string) {
@@ -86,7 +88,13 @@ export function ActionDock({
         aria-label="Ações do turno"
         className={`${embedded ? "mx-auto w-full max-w-5xl" : "pointer-events-auto mx-auto max-w-7xl"} p-2 sm:p-3 ${panelClass}`}
       >
-        {!embedded && <PlayerHand cards={myHand} />}
+        {!embedded && (
+          <PlayerHand
+            cards={myHand}
+            concealed={concealed}
+            concealedCount={Math.max(0, 2 - me.revealed.length)}
+          />
+        )}
         {picking && isMyTurn ? (
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -163,26 +171,38 @@ export function ActionDock({
 function PlayerHand({
   cards,
   onSelect,
+  concealed = false,
+  concealedCount = cards.length,
 }: {
   cards: Character[];
   onSelect?: (character: Character) => void;
+  concealed?: boolean;
+  concealedCount?: number;
 }) {
-  if (cards.length === 0) return null;
+  if (cards.length === 0 && (!concealed || concealedCount === 0)) return null;
+  const displayedCards = concealed
+    ? Array.from({ length: concealedCount }, () => undefined)
+    : cards;
   return (
     <div className="mb-2 border-b-[3px] border-[var(--pop-ink)] pb-2">
       <div className="text-center font-display text-xs font-black uppercase sm:text-sm">
         Sua mão
       </div>
       <div className="flex items-end justify-center gap-3 sm:gap-4" aria-label="Suas influências">
-        {cards.map((character, index) => {
-          const card = <InfluenceCard character={character} size="md" />;
+        {displayedCards.map((character, index) => {
+          const actualCharacter = character as Character;
+          const card = concealed ? (
+            <InfluenceCard faceDown size="md" />
+          ) : (
+            <InfluenceCard character={actualCharacter} size="md" />
+          );
           return onSelect ? (
             <button
               key={`${character}-${index}`}
               type="button"
-              onClick={() => onSelect(character)}
+              onClick={() => onSelect(actualCharacter)}
               className="rounded-md transition-transform hover:-translate-y-2 focus-visible:-translate-y-2 motion-reduce:transition-none"
-              aria-label={`Revelar ${CHARACTER_META[character].name}`}
+              aria-label={`Revelar ${CHARACTER_META[actualCharacter].name}`}
             >
               {card}
             </button>

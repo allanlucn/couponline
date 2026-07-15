@@ -13,6 +13,7 @@ export type RoomRow = {
   state: {
     pending?: any;
     actionTimeoutSeconds?: number;
+    readyAt?: string;
     deadlineAt?: string;
     version?: number;
   };

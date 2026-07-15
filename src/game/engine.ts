@@ -26,6 +26,7 @@ export type FullState = {
   winnerId?: string;
   rngSeed: number;
   actionTimeoutSeconds: number;
+  readyAt?: string;
   deadlineAt?: string;
 };
 

@@ -33,6 +33,7 @@ function RoomPage() {
   const [showRules, setShowRules] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(20);
+  const [shuffleSecondsLeft, setShuffleSecondsLeft] = useState(0);
   const [lobbyTimeoutDraft, setLobbyTimeoutDraft] = useState(20);
   const [directJoinName, setDirectJoinName] = useState("");
   const [joiningDirectly, setJoiningDirectly] = useState(false);
@@ -69,6 +70,20 @@ function RoomPage() {
     const interval = window.setInterval(tick, 250);
     return () => window.clearInterval(interval);
   }, [apply, room]);
+
+  useEffect(() => {
+    const readyAt = room?.state.readyAt;
+    if (!room || room.status !== "playing" || !readyAt) {
+      setShuffleSecondsLeft(0);
+      return;
+    }
+    const tick = () => {
+      setShuffleSecondsLeft(Math.max(0, Math.ceil((Date.parse(readyAt) - Date.now()) / 1000)));
+    };
+    tick();
+    const interval = window.setInterval(tick, 250);
+    return () => window.clearInterval(interval);
+  }, [room]);
 
   useEffect(() => {
     if (room?.status === "lobby") {
@@ -193,9 +208,7 @@ function RoomPage() {
     return (
       <main className="pop-shell min-h-screen px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <Link to="/" className="text-xs opacity-60 hover:opacity-100">
-            ← Sair
-          </Link>
+          <ExitRoomLink />
           <div className="mt-4 text-center pop-panel p-5 sm:p-7">
             <h2 className="font-display text-3xl font-black">Antecâmara</h2>
             <p className="text-sm text-muted-foreground mt-1">
@@ -290,6 +303,11 @@ function RoomPage() {
   }
 
   const pending = (room.state?.pending ?? null) as PendingAction | null;
+  const readyAtMs = room.state.readyAt ? Date.parse(room.state.readyAt) : 0;
+  const isShuffling =
+    room.status === "playing" &&
+    Number.isFinite(readyAtMs) &&
+    (shuffleSecondsLeft > 0 || readyAtMs > Date.now());
   const targetId = pending?.targetId;
   const showTablePending = Boolean(
     pending &&
@@ -311,9 +329,7 @@ function RoomPage() {
   return (
     <main className="pop-shell min-h-screen pb-[26rem] sm:pb-[22rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem]">
       <header className="sticky top-0 z-[60] flex shrink-0 items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4 lg:py-2">
-        <Link to="/" className="text-xs opacity-60 hover:opacity-100">
-          ← Sair
-        </Link>
+        <ExitRoomLink />
         <div className="ml-auto flex items-center gap-2 text-xs">
           <span className="opacity-60">Sala</span>
           <span className="font-mono tracking-widest">{code.toUpperCase()}</span>
@@ -367,6 +383,7 @@ function RoomPage() {
                     isMe={p.id === myPlayerId}
                     isTarget={targetId === p.id}
                     myHand={p.id === myPlayerId ? myHand : undefined}
+                    hideInfluences={isShuffling}
                     reactionStatus={
                       reactionClaimantId && p.is_alive && p.id !== reactionClaimantId
                         ? pending?.passed.includes(p.id)
@@ -382,7 +399,24 @@ function RoomPage() {
 
           <div className="relative order-first flex min-h-48 flex-col items-center justify-center gap-4 overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-4 shadow-[7px_7px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-6">
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
-            {showTablePending ? (
+            {isShuffling ? (
+              <div
+                className="relative z-10 text-center text-white"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="pop-kicker">Preparando a mesa</span>
+                <h2 className="mt-5 font-display text-4xl font-black uppercase [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-6xl">
+                  Embaralhando...
+                </h2>
+                <p className="mt-3 text-sm font-black uppercase sm:text-base">
+                  As influências serão reveladas quando todos estiverem prontos
+                </p>
+                <div className="mx-auto mt-5 inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] bg-[var(--pop-warning)] px-4 py-2 font-display text-2xl font-black text-[var(--pop-ink)] shadow-[4px_4px_0_var(--pop-ink)]">
+                  {Math.max(1, shuffleSecondsLeft)}s
+                </div>
+              </div>
+            ) : showTablePending ? (
               <div className="relative z-10 flex w-full flex-col items-center gap-5">
                 {pending?.phase === "exchange_pick" ? (
                   pending.actorId === myPlayerId ? (
@@ -485,6 +519,7 @@ function RoomPage() {
           myHand={myHand}
           onAction={doAction}
           handOnly
+          concealed={isShuffling}
         />
       ) : (
         <ActionDock
@@ -495,6 +530,7 @@ function RoomPage() {
           myCoins={me?.coins ?? 0}
           myHand={myHand}
           onAction={doAction}
+          concealed={isShuffling}
         />
       )}
 
@@ -511,6 +547,21 @@ function RoomPage() {
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     </main>
+  );
+}
+
+function ExitRoomLink() {
+  return (
+    <Link
+      to="/"
+      aria-label="Sair da sala"
+      className="group inline-flex min-h-11 items-center gap-2 border-[3px] border-[var(--pop-ink)] bg-[var(--pop-panel)] px-3 py-2 font-display text-sm font-black uppercase text-[var(--pop-ink)] shadow-[3px_3px_0_var(--pop-ink)] transition-[transform,box-shadow,background-color,color] duration-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:bg-[var(--pop-danger)] hover:text-white hover:shadow-[5px_5px_0_var(--pop-ink)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--pop-ink)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none"
+    >
+      <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-[var(--pop-ink)] bg-[var(--pop-danger)] font-sans text-base leading-none text-white transition-colors group-hover:bg-[var(--pop-warning)] group-hover:text-[var(--pop-ink)]">
+        ←
+      </span>
+      <span>Sair</span>
+    </Link>
   );
 }
 

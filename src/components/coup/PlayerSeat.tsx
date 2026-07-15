@@ -9,16 +9,26 @@ type Props = {
   isTarget?: boolean;
   myHand?: Character[];
   reactionStatus?: "responded" | "thinking";
+  hideInfluences?: boolean;
 };
 
-export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand, reactionStatus }: Props) {
+export function PlayerSeat({
+  player,
+  isCurrent,
+  isMe,
+  isTarget,
+  myHand,
+  reactionStatus,
+  hideInfluences = false,
+}: Props) {
   const initials = player.name
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const handSize = isMe ? (myHand?.length ?? 0) : Math.max(0, 2 - player.revealed.length);
+  const handSize =
+    isMe && !hideInfluences ? (myHand?.length ?? 0) : Math.max(0, 2 - player.revealed.length);
   const seatHue = (player.seat * 67) % 360;
   const seatState = !player.is_alive
     ? "Eliminado"
@@ -99,11 +109,12 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand, reaction
         className="flex min-h-12 max-w-full flex-wrap justify-center gap-1.5"
         aria-label="Influências"
       >
-        {!isMe &&
+        {(!isMe || hideInfluences) &&
           Array.from({ length: handSize }).map((_, index) => (
             <InfluenceCard key={`hidden-${index}`} faceDown size="sm" />
           ))}
         {isMe &&
+          !hideInfluences &&
           (myHand ?? []).map((character, index) => (
             <InfluenceCard key={`own-${character}-${index}`} character={character} size="sm" />
           ))}

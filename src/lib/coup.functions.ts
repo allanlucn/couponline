@@ -49,9 +49,12 @@ type RpcClient = {
   ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
 };
 type PublicPendingAction = Omit<PendingAction, "exchangeCards">;
+const GAME_START_DELAY_SECONDS = 10;
+
 export type PublicRoomState = {
   pending?: PublicPendingAction;
   actionTimeoutSeconds: number;
+  readyAt?: string;
   deadlineAt?: string;
   version: number;
 };
@@ -78,6 +81,7 @@ function toPublicRoomState(state: FullState, version: number): PublicRoomState {
   return {
     pending,
     actionTimeoutSeconds: state.actionTimeoutSeconds,
+    readyAt: state.readyAt,
     deadlineAt: state.deadlineAt,
     version,
   };
@@ -265,7 +269,9 @@ export const startGameFn = createServerFn({ method: "POST" })
       Math.max(20, Number((room.state as Record<string, unknown>)?.actionTimeoutSeconds ?? 20)),
     );
     const state = startGame(players, Math.floor(Math.random() * 1_000_000_000), timeout);
-    state.deadlineAt = new Date(Date.now() + timeout * 1000).toISOString();
+    const readyAtMs = Date.now() + GAME_START_DELAY_SECONDS * 1000;
+    state.readyAt = new Date(readyAtMs).toISOString();
+    state.deadlineAt = new Date(readyAtMs + timeout * 1000).toISOString();
     const { data: result, error } = await (supa as unknown as RpcClient).rpc("start_game_state", {
       p_room_id: data.roomId,
       p_host_user_id: context.userId,
@@ -335,7 +341,9 @@ export const restartGameFn = createServerFn({ method: "POST" })
       Math.max(20, Number((room.state as Record<string, unknown>)?.actionTimeoutSeconds ?? 20)),
     );
     const state = startGame(players, Math.floor(Math.random() * 1_000_000_000), timeout);
-    state.deadlineAt = new Date(Date.now() + timeout * 1000).toISOString();
+    const readyAtMs = Date.now() + GAME_START_DELAY_SECONDS * 1000;
+    state.readyAt = new Date(readyAtMs).toISOString();
+    state.deadlineAt = new Date(readyAtMs + timeout * 1000).toISOString();
     const expectedVersion = Number(canonical.version);
     const { data: result, error } = await (supa as unknown as RpcClient).rpc("restart_game_state", {
       p_room_id: data.roomId,
@@ -398,6 +406,10 @@ export const applyAction = createServerFn({ method: "POST" })
 
     for (let attempt = 0; attempt < 3; attempt++) {
       const { state: previous, version } = await loadCanonicalState(data.roomId);
+      if (previous.readyAt && Date.now() < Date.parse(previous.readyAt)) {
+        if (action.kind === "timeout") return { ok: true, ignored: true, version };
+        throw codedError("GAME_STARTING", "Aguarde o embaralhamento terminar");
+      }
       if (
         action.kind === "timeout" &&
         (!previous.deadlineAt ||
