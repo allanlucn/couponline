@@ -62,8 +62,8 @@ Cada partida usa três cópias de Duque, Assassino, Capitão, Embaixador e Conde
 ### Instalação
 
 ```bash
-git clone https://github.com/allanlucn/courtly-coup-canvas.git
-cd courtly-coup-canvas
+git clone https://github.com/allanlucn/couponline.git
+cd couponline
 bun install
 ```
 
