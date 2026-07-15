@@ -254,6 +254,10 @@ function PendingUI({
   const canReact = me.id !== excluded && me.is_alive && !pending.passed.includes(me.id);
   const claimingChar =
     pending.phase === "challenge_block" ? pending.block!.character : meta.character;
+  const eligibleReactors = players.filter((player) => player.is_alive && player.id !== excluded);
+  const respondedCount = eligibleReactors.filter((player) =>
+    pending.passed.includes(player.id),
+  ).length;
 
   async function submitReaction(key: string, action: unknown) {
     if (submittingReaction) return;
@@ -370,6 +374,20 @@ function PendingUI({
             {pending.passed.includes(me.id)
               ? "Você já passou. Aguardando os demais…"
               : "Aguardando reação dos outros…"}
+          </div>
+        )}
+        {(isChallengePhase || isBlockPhase) && (
+          <div
+            className={`mx-auto mt-4 w-fit border-2 border-[var(--pop-ink)] px-3 py-1 font-display text-sm font-black tabular-nums shadow-[2px_2px_0_var(--pop-ink)] ${
+              embedded
+                ? "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
+                : "bg-[var(--pop-info)] text-white"
+            }`}
+            role="status"
+            aria-live="polite"
+            aria-label={`${respondedCount} de ${eligibleReactors.length} jogadores já reagiram`}
+          >
+            {respondedCount}/{eligibleReactors.length}
           </div>
         )}
       </section>

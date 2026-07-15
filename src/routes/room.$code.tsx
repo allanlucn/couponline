@@ -299,6 +299,13 @@ function RoomPage() {
       pending.phase === "resolving" ||
       pending.phase === "exchange_pick"),
   );
+  const reactionClaimantId = pending
+    ? pending.phase === "challenge_block"
+      ? pending.block?.blockerId
+      : pending.phase === "challenge_action" || pending.phase === "block_window"
+        ? pending.actorId
+        : undefined
+    : undefined;
 
   // ============ GAME ============
   return (
@@ -360,6 +367,13 @@ function RoomPage() {
                     isMe={p.id === myPlayerId}
                     isTarget={targetId === p.id}
                     myHand={p.id === myPlayerId ? myHand : undefined}
+                    reactionStatus={
+                      reactionClaimantId && p.is_alive && p.id !== reactionClaimantId
+                        ? pending?.passed.includes(p.id)
+                          ? "responded"
+                          : "thinking"
+                        : undefined
+                    }
                   />
                 </div>
               ))}

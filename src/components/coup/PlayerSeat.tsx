@@ -8,9 +8,10 @@ type Props = {
   isMe: boolean;
   isTarget?: boolean;
   myHand?: Character[];
+  reactionStatus?: "responded" | "thinking";
 };
 
-export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props) {
+export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand, reactionStatus }: Props) {
   const initials = player.name
     .split(" ")
     .map((part) => part[0])
@@ -26,16 +27,35 @@ export function PlayerSeat({ player, isCurrent, isMe, isTarget, myHand }: Props)
       : isTarget
         ? "Alvo selecionado"
         : undefined;
+  const reactionLabel =
+    reactionStatus === "responded"
+      ? "Já reagiu"
+      : reactionStatus === "thinking"
+        ? "Ainda está pensando"
+        : undefined;
 
   return (
     <section
-      aria-label={`${player.name}${isMe ? ", você" : ""}${seatState ? ` — ${seatState}` : ""}`}
+      aria-label={`${player.name}${isMe ? ", você" : ""}${seatState ? ` — ${seatState}` : ""}${reactionLabel ? ` — ${reactionLabel}` : ""}`}
       className={`relative flex min-w-0 flex-col items-center gap-1.5 rounded-lg border-2 p-2.5 text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-[transform,filter] motion-reduce:transition-none ${
         isCurrent
           ? "-translate-y-1 border-[var(--pop-warning,#f4b900)] bg-[var(--pop-panel,#fff5dc)] ring-2 ring-[var(--pop-ink,#101114)]"
           : "border-[var(--pop-ink,#101114)] bg-[var(--pop-paper,#f5f0e5)]"
-      } ${isTarget ? "ring-4 ring-[var(--pop-danger,#d7193f)] ring-offset-2" : ""} ${!player.is_alive ? "opacity-60 grayscale" : ""}`}
+      } ${isTarget ? "ring-4 ring-[var(--pop-danger,#d7193f)] ring-offset-2" : ""} ${reactionStatus === "responded" ? "outline-[4px] outline-offset-2 outline-[var(--pop-info,#087985)]" : ""} ${!player.is_alive ? "opacity-60 grayscale" : ""}`}
     >
+      {reactionStatus && (
+        <span
+          className={`absolute -top-3 left-2 z-10 grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--pop-ink,#101114)] font-display text-sm font-black shadow-[2px_2px_0_var(--pop-ink,#101114)] ${
+            reactionStatus === "responded"
+              ? "bg-[var(--pop-info,#087985)] text-white"
+              : "bg-[var(--pop-warning,#f4b900)] text-[var(--pop-ink,#101114)]"
+          }`}
+          aria-label={reactionLabel}
+          title={reactionLabel}
+        >
+          {reactionStatus === "responded" ? "✓" : "…"}
+        </span>
+      )}
       {seatState && (
         <span
           className={`absolute -top-3 right-2 rotate-2 border-2 border-[var(--pop-ink,#101114)] px-2 py-0.5 font-display text-[10px] font-black uppercase shadow-[2px_2px_0_var(--pop-ink,#101114)] ${isTarget ? "bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"}`}
