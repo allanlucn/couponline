@@ -141,14 +141,28 @@ export function ActionDock({
                   key={a.type}
                   disabled={!!disabled}
                   onClick={() => (meta.targeted ? setPicking(a.type) : doAction(a.type))}
-                  className={`${buttonBase} ${a.danger ? "bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"} ${submittingAction === a.type ? submittingButtonClass : ""}`}
+                  className={`${buttonBase} ${a.danger ? "action-button--sliced bg-[var(--pop-danger,#d7193f)] text-white" : "bg-[var(--pop-warning,#f4b900)]"} ${submittingAction === a.type ? submittingButtonClass : ""}`}
                   title={a.hint}
                   aria-label={`${a.label}: ${a.hint}`}
                   aria-busy={submittingAction === a.type}
                 >
-                  <span className="block font-display text-sm uppercase sm:text-base">
-                    {a.label}
-                  </span>
+                  {a.danger ? (
+                    <span
+                      className="action-button__sliced-label block font-display text-sm uppercase sm:text-base"
+                      aria-hidden="true"
+                    >
+                      <span className="action-button__slice action-button__slice--top">
+                        {a.label}
+                      </span>
+                      <span className="action-button__slice action-button__slice--bottom">
+                        {a.label}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="block font-display text-sm uppercase sm:text-base">
+                      {a.label}
+                    </span>
+                  )}
                   <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
                     {a.hint}
                   </span>

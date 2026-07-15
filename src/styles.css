@@ -558,6 +558,67 @@
     2px 2px 0 var(--pop-ink);
 }
 
+.action-button--sliced {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.action-button--sliced::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 1.15rem;
+  left: -125%;
+  width: 115%;
+  height: 3px;
+  background: var(--pop-warning);
+  box-shadow: 0 1px 0 var(--pop-ink);
+  transform: skewX(-28deg) rotate(-2deg);
+  transition: left 520ms cubic-bezier(0.89, -0.17, 0.14, 1.225);
+  pointer-events: none;
+}
+
+.action-button__sliced-label {
+  position: relative;
+  height: 1.25rem;
+  line-height: 1.25rem;
+}
+
+.action-button__slice {
+  position: absolute;
+  inset: 0;
+  transition: transform 280ms cubic-bezier(1, -0.055, 0.025, 1.04);
+  will-change: transform;
+}
+
+.action-button__slice--top {
+  clip-path: polygon(0 0, 100% 0, 100% 48%, 0 64%);
+}
+
+.action-button__slice--bottom {
+  clip-path: polygon(0 64%, 100% 48%, 100% 100%, 0 100%);
+}
+
+.action-button--sliced:is(:hover, :focus-visible):not(:disabled)::after {
+  left: 115%;
+}
+
+.action-button--sliced:is(:hover, :focus-visible):not(:disabled) .action-button__slice--top {
+  transform: translate(-2px, -3px);
+}
+
+.action-button--sliced:is(:hover, :focus-visible):not(:disabled) .action-button__slice--bottom {
+  transform: translate(2px, 3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-button--sliced::after,
+  .action-button__slice {
+    transition: none;
+  }
+}
+
 @media (max-width: 479px) {
   :root {
     --radius: 0.25rem;
