@@ -296,7 +296,8 @@ function RoomPage() {
     (pending.phase === "challenge_action" ||
       pending.phase === "block_window" ||
       pending.phase === "challenge_block" ||
-      pending.phase === "resolving"),
+      pending.phase === "resolving" ||
+      pending.phase === "exchange_pick"),
   );
 
   // ============ GAME ============
@@ -369,16 +370,38 @@ function RoomPage() {
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
             {showTablePending ? (
               <div className="relative z-10 flex w-full flex-col items-center gap-5">
-                <ActionDock
-                  players={players}
-                  myPlayerId={myPlayerId}
-                  currentPlayerId={room.current_player_id}
-                  pending={pending}
-                  myCoins={me?.coins ?? 0}
-                  myHand={myHand}
-                  onAction={doAction}
-                  embedded
-                />
+                {pending?.phase === "exchange_pick" ? (
+                  pending.actorId === myPlayerId ? (
+                    <ExchangePicker
+                      myHand={myHand}
+                      drawn={myPendingCards}
+                      handSize={myHand.length}
+                      onSubmit={(keep) =>
+                        doAction({ kind: "exchange_return", playerId: myPlayerId, keep })
+                      }
+                      embedded
+                    />
+                  ) : (
+                    <div className="text-center text-white">
+                      <span className="pop-kicker inline-block text-xs">Ação na mesa</span>
+                      <h2 className="mt-4 font-display text-3xl uppercase [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-5xl">
+                        {nameFor(pending.actorId)}
+                      </h2>
+                      <p className="mt-2 font-display text-lg uppercase">está trocando cartas</p>
+                    </div>
+                  )
+                ) : (
+                  <ActionDock
+                    players={players}
+                    myPlayerId={myPlayerId}
+                    currentPlayerId={room.current_player_id}
+                    pending={pending}
+                    myCoins={me?.coins ?? 0}
+                    myHand={myHand}
+                    onAction={doAction}
+                    embedded
+                  />
+                )}
                 <div
                   className={`inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] px-4 py-2 font-display text-2xl font-black shadow-[4px_4px_0_var(--pop-ink)] ${
                     secondsLeft <= 5
@@ -435,16 +458,6 @@ function RoomPage() {
               ))}
             </div>
           </div>
-        )}
-
-        {/* Exchange picker */}
-        {pending?.phase === "exchange_pick" && pending.actorId === myPlayerId && (
-          <ExchangePicker
-            myHand={myHand}
-            drawn={myPendingCards}
-            handSize={myHand.length}
-            onSubmit={(keep) => doAction({ kind: "exchange_return", playerId: myPlayerId, keep })}
-          />
         )}
       </section>
 
@@ -591,11 +604,13 @@ function ExchangePicker({
   drawn,
   handSize,
   onSubmit,
+  embedded = false,
 }: {
   myHand: Character[];
   drawn: Character[];
   handSize: number;
   onSubmit: (keep: Character[]) => void;
+  embedded?: boolean;
 }) {
   const pool = [...myHand, ...drawn];
   const [selected, setSelected] = useState<number[]>([]);
@@ -605,17 +620,24 @@ function ExchangePicker({
     );
   };
   return (
-    <div className="mt-6 mx-auto max-w-xl pop-panel p-4 anim-fade-up">
-      <div className="font-display text-lg mb-1">Trocar cartas</div>
-      <p className="text-xs opacity-70 mb-3">
+    <div
+      className={`${embedded ? "mx-auto w-full max-w-3xl text-center text-white" : "pop-panel mx-auto mt-6 max-w-xl p-4"} anim-fade-up`}
+    >
+      {embedded && <span className="pop-kicker inline-block text-xs">Ação na mesa</span>}
+      <div
+        className={`${embedded ? "mt-4 text-3xl [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-5xl" : "mb-1 text-lg"} font-display uppercase`}
+      >
+        Trocar cartas
+      </div>
+      <p className={`${embedded ? "mt-2 text-sm font-bold" : "mb-3 text-xs opacity-70"}`}>
         Escolha {handSize} carta{handSize > 1 ? "s" : ""} para manter. As demais voltam ao baralho.
       </p>
-      <div className="flex flex-wrap gap-3 justify-center">
+      <div className="mt-4 flex flex-wrap justify-center gap-3">
         {pool.map((c, i) => (
           <button
             key={i}
             onClick={() => toggle(i)}
-            className={`transition-transform ${selected.includes(i) ? "ring-2 ring-[var(--bordeaux)] scale-105" : "opacity-70 hover:opacity-100"}`}
+            className={`transition-transform ${selected.includes(i) ? "scale-105 ring-4 ring-[var(--pop-warning)] ring-offset-2 ring-offset-[var(--pop-info)]" : "opacity-70 hover:opacity-100"}`}
           >
             <InfluenceCard character={c} size="md" />
           </button>
@@ -624,7 +646,7 @@ function ExchangePicker({
       <button
         disabled={selected.length !== handSize}
         onClick={() => onSubmit(selected.map((i) => pool[i]))}
-        className="btn-primary mt-4 w-full rounded-md py-2 text-sm font-semibold"
+        className={`${embedded ? "mx-auto max-w-sm" : "w-full"} btn-primary mt-5 rounded-md px-6 py-2 text-sm font-semibold`}
       >
         Confirmar
       </button>

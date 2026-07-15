@@ -275,7 +275,11 @@ function PendingUI({
     >
       <section
         aria-label="Reação pendente"
-        className={`anim-fade-up w-full max-w-3xl border-[5px] ${embedded ? "mx-auto p-4 shadow-[7px_7px_0_var(--pop-ink)] sm:p-6" : "p-6 shadow-[10px_10px_0_var(--pop-ink)] sm:p-8"} ${panelClass}`}
+        className={
+          embedded
+            ? "anim-fade-up mx-auto w-full max-w-4xl p-2 text-white sm:p-4"
+            : `anim-fade-up w-full max-w-3xl border-[5px] p-6 shadow-[10px_10px_0_var(--pop-ink)] sm:p-8 ${panelClass}`
+        }
       >
         {!embedded && (
           <div
@@ -286,7 +290,11 @@ function PendingUI({
         )}
         <div className="mb-5 text-center" aria-live="polite">
           <span className="pop-kicker inline-block text-xs">Ação na mesa</span>
-          <h2 className="mt-4 font-display text-2xl uppercase sm:text-4xl">{actor?.name}</h2>
+          <h2
+            className={`mt-4 font-display text-2xl uppercase sm:text-4xl ${embedded ? "[text-shadow:3px_3px_0_var(--pop-ink)]" : ""}`}
+          >
+            {actor?.name}
+          </h2>
           <p className="mt-1 font-display text-base uppercase sm:text-xl">
             declara <b>{meta.name}</b>
             {target && (
@@ -422,7 +430,7 @@ function BlockButtons({
   return (
     <div className="w-full">
       <div className="mb-3 text-center font-display text-lg font-black uppercase">
-        Escolha quem vocÃª vai alegar
+        Escolha quem você vai alegar
       </div>
       <div className="flex flex-wrap items-stretch justify-center gap-4">
         {sortedOptions.map((c) => {
@@ -441,7 +449,7 @@ function BlockButtons({
             >
               {isInHand && (
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap border-2 border-[var(--pop-ink)] bg-[var(--pop-danger)] px-2 py-1 text-xs uppercase text-white">
-                  Na sua mÃ£o
+                  Na sua mão
                 </span>
               )}
               <InfluenceCard character={c} size="md" />
