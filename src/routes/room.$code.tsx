@@ -14,7 +14,7 @@ import { PlayerSeat } from "@/components/coup/PlayerSeat";
 import { ActionDock } from "@/components/coup/ActionDock";
 import { EventLog } from "@/components/coup/EventLog";
 import { InfluenceCard } from "@/components/coup/InfluenceCard";
-import type { Character } from "@/game/types";
+import type { Character, PendingAction } from "@/game/types";
 import { CHARACTER_META, CHARACTERS } from "@/game/types";
 
 export const Route = createFileRoute("/room/$code")({
@@ -289,12 +289,19 @@ function RoomPage() {
     );
   }
 
-  const pending = room.state?.pending ?? null;
+  const pending = (room.state?.pending ?? null) as PendingAction | null;
   const targetId = pending?.targetId;
+  const showTablePending = Boolean(
+    pending &&
+    (pending.phase === "challenge_action" ||
+      pending.phase === "block_window" ||
+      pending.phase === "challenge_block" ||
+      pending.phase === "resolving"),
+  );
 
   // ============ GAME ============
   return (
-    <main className="pop-shell min-h-screen pb-[26rem] sm:pb-[22rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[15rem]">
+    <main className="pop-shell min-h-screen pb-[26rem] sm:pb-[22rem] lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden lg:pb-[17rem]">
       <header className="sticky top-0 z-[60] flex shrink-0 items-center gap-3 border-b-3 border-[var(--pop-ink)] bg-[var(--pop-paper)]/95 p-3 backdrop-blur-sm sm:p-4 lg:py-2">
         <Link to="/" className="text-xs opacity-60 hover:opacity-100">
           ← Sair
@@ -333,7 +340,7 @@ function RoomPage() {
       <section className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <TurnCarousel players={players} currentPlayerId={room.current_player_id} />
 
-        <div className="mt-4 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[17rem_minmax(0,1fr)] lg:pb-3">
+        <div className="mt-4 grid gap-4 lg:h-[min(60dvh,calc(100dvh-21rem))] lg:min-h-0 lg:flex-none lg:grid-cols-[17rem_minmax(0,1fr)] lg:pb-3">
           <aside aria-labelledby="players-title" className="min-w-0 lg:flex lg:min-h-0 lg:flex-col">
             <div className="mb-2 flex items-center justify-between">
               <h2 id="players-title" className="font-display text-xl font-black uppercase">
@@ -358,28 +365,54 @@ function RoomPage() {
             </div>
           </aside>
 
-          <div className="relative order-first grid min-h-48 place-items-center overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-4 shadow-[7px_7px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-6">
+          <div className="relative order-first flex min-h-48 flex-col items-center justify-center gap-4 overflow-hidden border-[4px] border-[var(--pop-ink)] bg-[var(--pop-info)] p-4 shadow-[7px_7px_0_var(--pop-ink)] pop-halftone lg:order-none lg:h-full lg:min-h-0 lg:w-full lg:p-6">
             <div className="absolute inset-5 border-[3px] border-[var(--pop-paper)]/75" />
-            <div className="relative text-center text-white">
-              <span className="pop-kicker">Na mesa!</span>
-              <div className="mt-4 font-display text-3xl font-black uppercase [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-4xl lg:text-5xl">
-                {nameFor(room.current_player_id ?? "")}
+            {showTablePending ? (
+              <div className="relative z-10 flex w-full flex-col items-center gap-5">
+                <ActionDock
+                  players={players}
+                  myPlayerId={myPlayerId}
+                  currentPlayerId={room.current_player_id}
+                  pending={pending}
+                  myCoins={me?.coins ?? 0}
+                  myHand={myHand}
+                  onAction={doAction}
+                  embedded
+                />
+                <div
+                  className={`inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] px-4 py-2 font-display text-2xl font-black shadow-[4px_4px_0_var(--pop-ink)] ${
+                    secondsLeft <= 5
+                      ? "bg-[var(--pop-danger)] text-white"
+                      : "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
+                  }`}
+                  aria-live="polite"
+                  aria-label={`${secondsLeft} segundos restantes`}
+                >
+                  {secondsLeft}s
+                </div>
               </div>
-              <p className="mt-2 text-sm font-black uppercase sm:text-base">
-                está decidindo a próxima jogada
-              </p>
-              <div
-                className={`mx-auto mt-4 inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] px-4 py-2 font-display text-2xl font-black shadow-[4px_4px_0_var(--pop-ink)] ${
-                  secondsLeft <= 5
-                    ? "bg-[var(--pop-danger)] text-white"
-                    : "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
-                }`}
-                aria-live="polite"
-                aria-label={`${secondsLeft} segundos restantes`}
-              >
-                {secondsLeft}s
+            ) : (
+              <div className="relative z-10 text-center text-white">
+                <span className="pop-kicker">Na mesa!</span>
+                <div className="mt-4 font-display text-3xl font-black uppercase [text-shadow:3px_3px_0_var(--pop-ink)] sm:text-4xl lg:text-5xl">
+                  {nameFor(room.current_player_id ?? "")}
+                </div>
+                <p className="mt-2 text-sm font-black uppercase sm:text-base">
+                  Está decidindo a próxima jogada
+                </p>
+                <div
+                  className={`mx-auto mt-4 inline-flex min-w-24 items-center justify-center border-[3px] border-[var(--pop-ink)] px-4 py-2 font-display text-2xl font-black shadow-[4px_4px_0_var(--pop-ink)] ${
+                    secondsLeft <= 5
+                      ? "bg-[var(--pop-danger)] text-white"
+                      : "bg-[var(--pop-warning)] text-[var(--pop-ink)]"
+                  }`}
+                  aria-live="polite"
+                  aria-label={`${secondsLeft} segundos restantes`}
+                >
+                  {secondsLeft}s
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -415,15 +448,28 @@ function RoomPage() {
         )}
       </section>
 
-      <ActionDock
-        players={players}
-        myPlayerId={myPlayerId}
-        currentPlayerId={room.current_player_id}
-        pending={pending}
-        myCoins={me?.coins ?? 0}
-        myHand={myHand}
-        onAction={doAction}
-      />
+      {showTablePending ? (
+        <ActionDock
+          players={players}
+          myPlayerId={myPlayerId}
+          currentPlayerId={room.current_player_id}
+          pending={pending}
+          myCoins={me?.coins ?? 0}
+          myHand={myHand}
+          onAction={doAction}
+          handOnly
+        />
+      ) : (
+        <ActionDock
+          players={players}
+          myPlayerId={myPlayerId}
+          currentPlayerId={room.current_player_id}
+          pending={pending}
+          myCoins={me?.coins ?? 0}
+          myHand={myHand}
+          onAction={doAction}
+        />
+      )}
 
       <EventLog events={events} nameFor={nameFor} />
 
@@ -690,7 +736,10 @@ function VictoryScene({
           <p className="mt-6 font-bold text-white">Aguardando o host jogar novamente...</p>
         )}
         <div>
-          <Link to="/" className="btn-ghost mt-4 inline-block px-4 py-2 text-sm text-white">
+          <Link
+            to="/"
+            className="btn-ghost mt-4 inline-block px-4 py-2 text-sm font-bold text-[var(--pop-ink)]"
+          >
             Sair da sala
           </Link>
         </div>

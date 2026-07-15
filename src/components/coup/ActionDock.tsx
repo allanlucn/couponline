@@ -12,6 +12,8 @@ type Props = {
   myCoins: number;
   myHand: Character[];
   onAction: (act: unknown) => Promise<void>;
+  embedded?: boolean;
+  handOnly?: boolean;
 };
 
 const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean }[] = [
@@ -27,7 +29,7 @@ const ACTIONS: { type: ActionType; label: string; hint: string; danger?: boolean
 const panelClass =
   "border-[3px] border-[var(--pop-ink,#101114)] bg-[var(--pop-panel,#fff5dc)] text-[var(--pop-ink,#101114)] shadow-[6px_6px_0_var(--pop-ink,#101114)]";
 const buttonBase =
-  "min-h-12 border-[3px] border-[var(--pop-ink,#101114)] px-3 py-2 text-left text-sm font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-[transform,box-shadow,filter] duration-100 ease-out hover:-translate-x-0.5 hover:-translate-y-1 hover:shadow-[5px_5px_0_var(--pop-ink,#101114)] active:translate-x-0.5 active:translate-y-0.5 active:scale-[0.96] active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:scale-100";
+  "min-h-12 border-[3px] border-[var(--pop-ink,#101114)] px-3 py-2 text-left text-sm font-bold leading-tight text-[var(--pop-ink,#101114)] shadow-[3px_3px_0_var(--pop-ink,#101114)] transition-[transform,box-shadow,filter] duration-100 ease-out hover:-translate-x-0.5 hover:-translate-y-1 hover:shadow-[5px_5px_0_var(--pop-ink,#101114)] active:translate-x-0.5 active:translate-y-0.5 active:scale-[0.96] active:shadow-[1px_1px_0_var(--pop-ink,#101114)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--pop-focus,#3478f6)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:scale-100";
 const submittingButtonClass = "anim-button-pop cursor-wait disabled:opacity-75";
 
 export function ActionDock({
@@ -38,6 +40,8 @@ export function ActionDock({
   myCoins,
   myHand,
   onAction,
+  embedded = false,
+  handOnly = false,
 }: Props) {
   const [picking, setPicking] = useState<ActionType | null>(null);
   const [submittingAction, setSubmittingAction] = useState<ActionType | null>(null);
@@ -57,26 +61,33 @@ export function ActionDock({
     }
   }
 
-  if (pending && me.is_alive) {
+  if (pending && me.is_alive && !handOnly) {
     return (
-      <PendingUI pending={pending} me={me} players={players} myHand={myHand} onAction={onAction} />
+      <PendingUI
+        pending={pending}
+        me={me}
+        players={players}
+        myHand={myHand}
+        onAction={onAction}
+        embedded={embedded}
+      />
     );
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
+    <div
+      className={
+        embedded
+          ? "w-full"
+          : "pointer-events-none fixed inset-x-0 bottom-0 z-20 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4"
+      }
+    >
       <section
         aria-label="Ações do turno"
-        className={`pointer-events-auto mx-auto max-w-7xl p-2 sm:p-3 ${panelClass}`}
+        className={`${embedded ? "mx-auto w-full max-w-5xl" : "pointer-events-auto mx-auto max-w-7xl"} p-2 sm:p-3 ${panelClass}`}
       >
-        <PlayerHand cards={myHand} />
-        {!isMyTurn ? (
-          <div className="py-2 text-center text-sm font-bold" role="status" aria-live="polite">
-            {currentPlayerId
-              ? `Aguardando ${players.find((p) => p.id === currentPlayerId)?.name ?? "…"}`
-              : "Aguardando…"}
-          </div>
-        ) : picking ? (
+        {!embedded && <PlayerHand cards={myHand} />}
+        {picking && isMyTurn ? (
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
               <strong className="font-display text-base uppercase">Escolha o alvo</strong>
@@ -95,7 +106,7 @@ export function ActionDock({
                     className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white ${submittingAction === picking ? submittingButtonClass : ""}`}
                     aria-busy={submittingAction === picking}
                   >
-                    {submittingAction === picking ? "Registrandoâ€¦" : p.name}
+                    {p.name}
                   </button>
                 ))}
               <button
@@ -111,6 +122,8 @@ export function ActionDock({
             {ACTIONS.map((a) => {
               const meta = ACTION_META[a.type];
               const disabled =
+                !isMyTurn ||
+                handOnly ||
                 submittingAction !== null ||
                 (mustCoup && a.type !== "coup") ||
                 (meta.cost && myCoins < meta.cost) ||
@@ -126,21 +139,22 @@ export function ActionDock({
                   aria-busy={submittingAction === a.type}
                 >
                   <span className="block font-display text-sm uppercase sm:text-base">
-                    {submittingAction === a.type ? "Registrandoâ€¦" : a.label}
+                    {a.label}
                   </span>
                   <span className="mt-0.5 block text-[10px] font-medium opacity-80 sm:text-xs">
-                    {submittingAction === a.type ? "Enviando ao servidor" : a.hint}
+                    {a.hint}
                   </span>
                 </button>
               );
             })}
           </div>
         )}
-        {isMyTurn && mustCoup && !picking && (
-          <p className="mt-2 text-center text-xs font-bold" role="status">
-            Com 10 moedas, o Golpe é obrigatório.
-          </p>
-        )}
+        <p
+          className={`mt-2 min-h-4 text-center text-xs font-bold ${isMyTurn && mustCoup && !picking ? "" : "invisible"}`}
+          role="status"
+        >
+          Com 10 moedas, o Golpe é obrigatório.
+        </p>
       </section>
     </div>
   );
@@ -189,12 +203,14 @@ function PendingUI({
   players,
   myHand,
   onAction,
+  embedded,
 }: {
   pending: PendingAction;
   me: PlayerRow;
   players: PlayerRow[];
   myHand: Character[];
   onAction: (a: unknown) => Promise<void>;
+  embedded: boolean;
 }) {
   const [submittingReaction, setSubmittingReaction] = useState<string | null>(null);
   const actor = players.find((p) => p.id === pending.actorId);
@@ -250,17 +266,29 @@ function PendingUI({
   }
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-[var(--pop-ink)]/20 px-4 pb-24 sm:pb-28">
+    <div
+      className={
+        embedded
+          ? "w-full"
+          : "fixed inset-0 z-40 grid place-items-center bg-[var(--pop-ink)]/20 px-4 pb-24 sm:pb-28"
+      }
+    >
       <section
         aria-label="Reação pendente"
-        className={`anim-fade-up w-full max-w-3xl border-[5px] p-6 shadow-[10px_10px_0_var(--pop-ink)] sm:p-8 ${panelClass}`}
+        className={`anim-fade-up w-full max-w-3xl border-[5px] ${embedded ? "mx-auto p-4 shadow-[7px_7px_0_var(--pop-ink)] sm:p-6" : "p-6 shadow-[10px_10px_0_var(--pop-ink)] sm:p-8"} ${panelClass}`}
       >
-        <div className={`fixed inset-x-2 bottom-2 z-50 mx-auto max-w-4xl p-3 sm:p-4 ${panelClass}`}>
-          <PlayerHand cards={myHand} />
-        </div>
-        <p className="mb-3 text-sm font-medium" aria-live="polite">
-          <span className="font-display text-xl uppercase sm:text-3xl">
-            {actor?.name} declara <b>{meta.name}</b>
+        {!embedded && (
+          <div
+            className={`fixed inset-x-2 bottom-2 z-50 mx-auto max-w-4xl p-3 sm:p-4 ${panelClass}`}
+          >
+            <PlayerHand cards={myHand} />
+          </div>
+        )}
+        <div className="mb-5 text-center" aria-live="polite">
+          <span className="pop-kicker inline-block text-xs">Ação na mesa</span>
+          <h2 className="mt-4 font-display text-2xl uppercase sm:text-4xl">{actor?.name}</h2>
+          <p className="mt-1 font-display text-base uppercase sm:text-xl">
+            declara <b>{meta.name}</b>
             {target && (
               <>
                 {" "}
@@ -273,8 +301,8 @@ function PendingUI({
                 · alega <b>{CHARACTER_META[claimingChar].name}</b>
               </>
             )}
-          </span>
-        </p>
+          </p>
+        </div>
         {canReact && isChallengePhase && (
           <div className="flex flex-wrap justify-center gap-4">
             <button
@@ -285,9 +313,7 @@ function PendingUI({
               className={`${buttonBase} bg-[var(--pop-danger,#d7193f)] text-white ${submittingReaction === "challenge" ? submittingButtonClass : ""}`}
               aria-busy={submittingReaction === "challenge"}
             >
-              {submittingReaction === "challenge"
-                ? "Registrandoâ€¦"
-                : `Desafiar ${claimingChar ? `(${CHARACTER_META[claimingChar].name})` : ""}`}
+              Desafiar {claimingChar ? `(${CHARACTER_META[claimingChar].name})` : ""}
             </button>
             <button
               disabled={submittingReaction !== null}
@@ -295,7 +321,7 @@ function PendingUI({
               className={`${buttonBase} bg-[var(--pop-white,#fffdf7)] ${submittingReaction === "pass" ? submittingButtonClass : ""}`}
               aria-busy={submittingReaction === "pass"}
             >
-              {submittingReaction === "pass" ? "Registrandoâ€¦" : "Passar"}
+              Passar
             </button>
           </div>
         )}
@@ -320,11 +346,16 @@ function PendingUI({
               className={`${buttonBase} bg-[var(--pop-white,#fffdf7)] ${submittingReaction === "pass" ? submittingButtonClass : ""}`}
               aria-busy={submittingReaction === "pass"}
             >
-              {submittingReaction === "pass" ? "Registrandoâ€¦" : "Passar"}
+              Passar
             </button>
           </div>
         )}
-        {!canReact && (
+        {pending.phase === "resolving" && (
+          <div className="text-center text-base font-bold" role="status">
+            Resolvendo a ação…
+          </div>
+        )}
+        {!canReact && pending.phase !== "resolving" && (
           <div className="text-center text-base font-bold" role="status">
             {pending.passed.includes(me.id)
               ? "Você já passou. Aguardando os demais…"
@@ -367,7 +398,7 @@ function BlockButtons({
         className={`${buttonBase} bg-[var(--pop-info,#087985)] text-white ${isSubmitting ? submittingButtonClass : ""}`}
         aria-busy={isSubmitting}
       >
-        {isSubmitting ? "Registrandoâ€¦" : `Bloquear como ${CHARACTER_META[character].name}`}
+        Bloquear como {CHARACTER_META[character].name}
       </button>
     );
   }
@@ -416,11 +447,7 @@ function BlockButtons({
               <InfluenceCard character={c} size="md" />
               <span className="font-display text-lg uppercase">{CHARACTER_META[c].name}</span>
               <span className="text-xs uppercase opacity-70">
-                {submitting === `block-${c}`
-                  ? "Registrandoâ€¦"
-                  : isInHand
-                    ? "Bloqueio real"
-                    : "Blefe"}
+                {isInHand ? "Bloqueio real" : "Blefe"}
               </span>
             </button>
           );
