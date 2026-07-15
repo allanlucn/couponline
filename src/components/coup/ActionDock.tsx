@@ -295,7 +295,9 @@ function PendingUI({
           >
             {actor?.name}
           </h2>
-          <p className="mt-1 font-display text-base uppercase sm:text-xl">
+          <p
+            className={`mt-1 font-display text-base uppercase sm:text-xl ${embedded ? "table-action-description" : ""}`}
+          >
             declara <b>{meta.name}</b>
             {target && (
               <>

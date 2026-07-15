@@ -549,6 +549,15 @@
   animation: button-pop 180ms ease-out;
 }
 
+.table-action-description {
+  text-shadow:
+    -1px -1px 0 var(--pop-ink),
+    1px -1px 0 var(--pop-ink),
+    -1px 1px 0 var(--pop-ink),
+    1px 1px 0 var(--pop-ink),
+    2px 2px 0 var(--pop-ink);
+}
+
 @media (max-width: 479px) {
   :root {
     --radius: 0.25rem;
